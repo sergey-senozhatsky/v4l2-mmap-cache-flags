@@ -1,0 +1,76 @@
+From 5ad5ea27dcf9208edb877787ce4b7a968f02d296 Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
+Date: Tue, 25 Feb 2020 15:01:36 +0900
+Subject: [PATCH 12/12] videobuf2: don't test db_attach in dma-contig prepare
+ and finish
+
+We moved cache management decision making to the upper layer and
+rely on buffer's need_cache_sync flags and videobuf2 core. If the
+upper layer (core) has decided to invoke ->prepare() or ->finish()
+then we must sync.
+
+For DMABUF ->need_cache_sync_on_prepare and ->need_cache_sync_on_flush
+are always false so videobuf core does not call ->prepare() and
+->finish() on such buffers.
+
+Additionally, scratch the DMABUF comment.
+
+Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+---
+ drivers/media/common/videobuf2/videobuf2-dma-contig.c | 6 ++----
+ drivers/media/common/videobuf2/videobuf2-dma-sg.c     | 8 --------
+ 2 files changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/media/common/videobuf2/videobuf2-dma-contig.c b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
+index 6787e2cb905e..5a3e1c3b556f 100644
+--- a/drivers/media/common/videobuf2/videobuf2-dma-contig.c
++++ b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
+@@ -100,8 +100,7 @@ static void vb2_dc_prepare(void *buf_priv)
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	struct sg_table *sgt = buf->dma_sgt;
+ 
+-	/* DMABUF exporter will flush the cache for us */
+-	if (!sgt || buf->db_attach)
++	if (!sgt)
+ 		return;
+ 
+ 	dma_sync_sg_for_device(buf->dev, sgt->sgl, sgt->orig_nents,
+@@ -113,8 +112,7 @@ static void vb2_dc_finish(void *buf_priv)
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	struct sg_table *sgt = buf->dma_sgt;
+ 
+-	/* DMABUF exporter will flush the cache for us */
+-	if (!sgt || buf->db_attach)
++	if (!sgt)
+ 		return;
+ 
+ 	dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->orig_nents, buf->dma_dir);
+diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+index 0c4899d62edb..1fa7e0578f5f 100644
+--- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
++++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+@@ -204,10 +204,6 @@ static void vb2_dma_sg_prepare(void *buf_priv)
+ 	struct vb2_dma_sg_buf *buf = buf_priv;
+ 	struct sg_table *sgt = buf->dma_sgt;
+ 
+-	/* DMABUF exporter will flush the cache for us */
+-	if (buf->db_attach)
+-		return;
+-
+ 	dma_sync_sg_for_device(buf->dev, sgt->sgl, sgt->orig_nents,
+ 			       buf->dma_dir);
+ }
+@@ -217,10 +213,6 @@ static void vb2_dma_sg_finish(void *buf_priv)
+ 	struct vb2_dma_sg_buf *buf = buf_priv;
+ 	struct sg_table *sgt = buf->dma_sgt;
+ 
+-	/* DMABUF exporter will flush the cache for us */
+-	if (buf->db_attach)
+-		return;
+-
+ 	dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->orig_nents, buf->dma_dir);
+ }
+ 
+-- 
+2.25.1
+

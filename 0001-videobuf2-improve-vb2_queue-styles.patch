@@ -1,0 +1,45 @@
+From 06c83a58a7bee4b89086110a4d1fa1128526ff89 Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Date: Sat, 7 Mar 2020 20:18:16 +0900
+Subject: [PATCH 01/12] videobuf2: improve vb2_queue styles
+
+Switch from 'unsigned' to 'unsigned int' so that checkpatch doesn't
+complain.
+
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ include/media/videobuf2-core.h | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/include/media/videobuf2-core.h b/include/media/videobuf2-core.h
+index f11b96514cf7..9e522bd2acc7 100644
+--- a/include/media/videobuf2-core.h
++++ b/include/media/videobuf2-core.h
+@@ -558,15 +558,15 @@ struct vb2_queue {
+ 	unsigned int			io_modes;
+ 	struct device			*dev;
+ 	unsigned long			dma_attrs;
+-	unsigned			bidirectional:1;
+-	unsigned			fileio_read_once:1;
+-	unsigned			fileio_write_immediately:1;
+-	unsigned			allow_zero_bytesused:1;
+-	unsigned		   quirk_poll_must_check_waiting_for_buffers:1;
+-	unsigned			supports_requests:1;
+-	unsigned			requires_requests:1;
+-	unsigned			uses_qbuf:1;
+-	unsigned			uses_requests:1;
++	unsigned int			bidirectional:1;
++	unsigned int			fileio_read_once:1;
++	unsigned int			fileio_write_immediately:1;
++	unsigned int			allow_zero_bytesused:1;
++	unsigned int		   quirk_poll_must_check_waiting_for_buffers:1;
++	unsigned int			supports_requests:1;
++	unsigned int			requires_requests:1;
++	unsigned int			uses_qbuf:1;
++	unsigned int			uses_requests:1;
+ 
+ 	struct mutex			*lock;
+ 	void				*owner;
+-- 
+2.25.1
+

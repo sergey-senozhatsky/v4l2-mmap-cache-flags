@@ -1,0 +1,130 @@
+From 4680994d9623a85931e8bfc1b565f07136e0108f Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
+Date: Tue, 25 Feb 2020 15:01:35 +0900
+Subject: [PATCH 04/12] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+
+By setting or clearing V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+user-space should be able to set or clear queue's NON_CONSISTENT
+->dma_attrs. Queue's ->dma_attrs are passed to the underlying
+allocator in __vb2_buf_mem_alloc(), so thus user-space is able
+to request vb2 buffer's memory to be either consistent (coherent)
+or non-consistent.
+
+The patch set also adds a corresponding capability flag:
+fill_buf_caps() reports V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS when
+queue supports user-space cache management hints.
+
+Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+---
+ Documentation/media/uapi/v4l/buffer.rst       | 31 +++++++++++++++++++
+ .../media/uapi/v4l/vidioc-reqbufs.rst         |  9 ++++++
+ .../media/common/videobuf2/videobuf2-v4l2.c   |  2 ++
+ include/uapi/linux/videodev2.h                |  3 ++
+ 4 files changed, 45 insertions(+)
+
+diff --git a/Documentation/media/uapi/v4l/buffer.rst b/Documentation/media/uapi/v4l/buffer.rst
+index 3112300c2fa0..82bad4dbec16 100644
+--- a/Documentation/media/uapi/v4l/buffer.rst
++++ b/Documentation/media/uapi/v4l/buffer.rst
+@@ -681,6 +681,37 @@ Buffer Flags
+ 
+     \normalsize
+ 
++.. _memory-flags:
++
++Memory Consistency Flags
++========================
++
++.. tabularcolumns:: |p{7.0cm}|p{2.2cm}|p{8.3cm}|
++
++.. cssclass:: longtable
++
++.. flat-table::
++    :header-rows:  0
++    :stub-columns: 0
++    :widths:       3 1 4
++
++    * .. _`V4L2-FLAG-MEMORY-NON-CONSISTENT`:
++
++      - ``V4L2_FLAG_MEMORY_NON_CONSISTENT``
++      - 0x00000001
++      - A buffer is allocated either in consistent (it will be automatically
++	coherent between the CPU and the bus) or non-consistent memory. The
++	latter can provide performance gains, for instance the CPU cache
++	sync/flush operations can be avoided if the buffer is accessed by the
++	corresponding device only and the CPU does not read/write to/from that
++	buffer. However, this requires extra care from the driver -- it must
++	guarantee memory consistency by issuing a cache flush/sync when
++	consistency is needed. If this flag is set V4L2 will attempt to
++	allocate the buffer in non-consistent memory. The flag takes effect
++	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
++	queue reports the
++	:ref:`V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS <V4L2-BUF-CAP-SUPPORTS-CACHE-HINTS>`
++	capability.
+ 
+ .. c:type:: v4l2_memory
+ 
+diff --git a/Documentation/media/uapi/v4l/vidioc-reqbufs.rst b/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
+index d0c643db477a..cde6b6719615 100644
+--- a/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
++++ b/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
+@@ -126,6 +126,7 @@ aborting or finishing any DMA in progress, an implicit
+ .. _V4L2-BUF-CAP-SUPPORTS-REQUESTS:
+ .. _V4L2-BUF-CAP-SUPPORTS-ORPHANED-BUFS:
+ .. _V4L2-BUF-CAP-SUPPORTS-M2M-HOLD-CAPTURE-BUF:
++.. _V4L2-BUF-CAP-SUPPORTS-CACHE-HINTS:
+ 
+ .. cssclass:: longtable
+ 
+@@ -156,6 +157,14 @@ aborting or finishing any DMA in progress, an implicit
+       - Only valid for stateless decoders. If set, then userspace can set the
+         ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF`` flag to hold off on returning the
+ 	capture buffer until the OUTPUT timestamp changes.
++    * - ``V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS``
++      - 0x00000040
++      - Set when the queue/buffer supports memory consistency and cache
++        management hints. See
++        :ref:`V4L2_FLAG_MEMORY_NON_CONSISTENT <V4L2-FLAG-MEMORY-NON-CONSISTENT>`,
++        :ref:`V4L2_BUF_FLAG_NO_CACHE_INVALIDATE <V4L2-BUF-FLAG-NO-CACHE-INVALIDATE>` and
++        :ref:`V4L2_BUF_FLAG_NO_CACHE_CLEAN <V4L2-BUF-FLAG-NO-CACHE-CLEAN>`.
++
+ 
+ Return Value
+ ============
+diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
+index 2a604bd7793a..c847bcea6e95 100644
+--- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
++++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
+@@ -711,6 +711,8 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+ 		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
+ 	if (q->subsystem_flags & VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF)
+ 		*caps |= V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF;
++	if (q->allow_cache_hints && (q->io_modes & VB2_MMAP))
++		*caps |= V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS;
+ #ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
+ 	if (q->supports_requests)
+ 		*caps |= V4L2_BUF_CAP_SUPPORTS_REQUESTS;
+diff --git a/include/uapi/linux/videodev2.h b/include/uapi/linux/videodev2.h
+index 5f9357dcb060..e92c29864730 100644
+--- a/include/uapi/linux/videodev2.h
++++ b/include/uapi/linux/videodev2.h
+@@ -189,6 +189,8 @@ enum v4l2_memory {
+ 	V4L2_MEMORY_DMABUF           = 4,
+ };
+ 
++#define V4L2_FLAG_MEMORY_NON_CONSISTENT		(1 << 0)
++
+ /* see also http://vektor.theorem.ca/graphics/ycbcr/ */
+ enum v4l2_colorspace {
+ 	/*
+@@ -946,6 +948,7 @@ struct v4l2_requestbuffers {
+ #define V4L2_BUF_CAP_SUPPORTS_REQUESTS			(1 << 3)
+ #define V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS		(1 << 4)
+ #define V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF	(1 << 5)
++#define V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS		(1 << 6)
+ 
+ /**
+  * struct v4l2_plane - plane info for multi-planar buffers
+-- 
+2.25.1
+
