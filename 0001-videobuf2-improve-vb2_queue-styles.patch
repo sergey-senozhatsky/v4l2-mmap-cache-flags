@@ -1,4 +1,4 @@
-From 06c83a58a7bee4b89086110a4d1fa1128526ff89 Mon Sep 17 00:00:00 2001
+From 476ffc2935956d960cbc88445eca53a452521cb0 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Sat, 7 Mar 2020 20:18:16 +0900
 Subject: [PATCH 01/12] videobuf2: improve vb2_queue styles
@@ -41,5 +41,5 @@ index f11b96514cf7..9e522bd2acc7 100644
  	struct mutex			*lock;
  	void				*owner;
 -- 
-2.25.1
+2.25.1.481.gfbce0eb801-goog
 

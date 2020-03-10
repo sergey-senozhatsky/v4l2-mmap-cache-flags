@@ -1,4 +1,4 @@
-From 5ad5ea27dcf9208edb877787ce4b7a968f02d296 Mon Sep 17 00:00:00 2001
+From 0103692ea7241d366e13fdf86c4393f84451c939 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:36 +0900
 Subject: [PATCH 12/12] videobuf2: don't test db_attach in dma-contig prepare
@@ -72,5 +72,5 @@ index 0c4899d62edb..1fa7e0578f5f 100644
  }
  
 -- 
-2.25.1
+2.25.1.481.gfbce0eb801-goog
 

@@ -1,4 +1,4 @@
-From 04af23b3afcb02d7754b82e354c1885c2e295313 Mon Sep 17 00:00:00 2001
+From c0891d536681fa49d511342bb4e3de36c98d7400 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 05/12] videobuf2: add queue memory consistency parameter
@@ -128,10 +128,10 @@ index 4489744fbbd9..a67dd262d0ce 100644
  		dprintk(3, "file io emulator closed\n");
  	}
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index c847bcea6e95..6111d74f68c9 100644
+index 6d51600e070a..1219be0f99e3 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-@@ -724,7 +724,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
+@@ -723,7 +723,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
  	int ret = vb2_verify_memory_type(q, req->memory, req->type);
  
  	fill_buf_caps(q, &req->capabilities);
@@ -140,7 +140,7 @@ index c847bcea6e95..6111d74f68c9 100644
  }
  EXPORT_SYMBOL_GPL(vb2_reqbufs);
  
-@@ -798,7 +798,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+@@ -797,7 +797,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
  	for (i = 0; i < requested_planes; i++)
  		if (requested_sizes[i] == 0)
  			return -EINVAL;
@@ -149,7 +149,7 @@ index c847bcea6e95..6111d74f68c9 100644
  		&create->count, requested_planes, requested_sizes);
  }
  EXPORT_SYMBOL_GPL(vb2_create_bufs);
-@@ -974,7 +974,7 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
+@@ -973,7 +973,7 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
  		return res;
  	if (vb2_queue_is_busy(vdev, file))
  		return -EBUSY;
@@ -209,5 +209,5 @@ index ccc5c498d3e3..001a92b0937c 100644
  
  /**
 -- 
-2.25.1
+2.25.1.481.gfbce0eb801-goog
 
