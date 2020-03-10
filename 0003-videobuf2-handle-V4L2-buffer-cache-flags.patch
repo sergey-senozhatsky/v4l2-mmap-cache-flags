@@ -1,4 +1,4 @@
-From ea234e919f84cae3b219c31ce3c6ed3bb9a98349 Mon Sep 17 00:00:00 2001
+From 6493c19ce4248fbce2d5327909dbbe30d03284fa Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 03/12] videobuf2: handle V4L2 buffer cache flags
@@ -13,31 +13,15 @@ flush.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- .../media/common/videobuf2/videobuf2-v4l2.c   | 49 +++++++++++++++++++
+ .../media/common/videobuf2/videobuf2-v4l2.c   | 48 +++++++++++++++++++
  include/media/videobuf2-core.h                | 11 +++++
- 2 files changed, 60 insertions(+)
+ 2 files changed, 59 insertions(+)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index eb5d5db96552..2a604bd7793a 100644
+index eb5d5db96552..f13851212cc8 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-@@ -199,6 +199,15 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
- 	vbuf->request_fd = -1;
- 	vbuf->is_held = false;
- 
-+	/*
-+	 * Clear buffer cache flags if queue does not support user space hints.
-+	 * That's to indicate to userspace that these flags won't work.
-+	 */
-+	if (!vb2_queue_allows_cache_hints(q)) {
-+		b->flags &= ~V4L2_BUF_FLAG_NO_CACHE_INVALIDATE;
-+		b->flags &= ~V4L2_BUF_FLAG_NO_CACHE_CLEAN;
-+	}
-+
- 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
- 		switch (b->memory) {
- 		case VB2_MEMORY_USERPTR:
-@@ -337,6 +346,45 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
+@@ -337,6 +337,53 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
  	return 0;
  }
  
@@ -63,8 +47,16 @@ index eb5d5db96552..2a604bd7793a 100644
 +	vb->need_cache_sync_on_prepare = 1;
 +	vb->need_cache_sync_on_finish = 1;
 +
-+	if (!vb2_queue_allows_cache_hints(q))
++	if (!vb2_queue_allows_cache_hints(q)) {
++		/*
++		 * Clear buffer cache flags if queue does not support user
++		 * space hints. That's to indicate to userspace that these
++		 * flags won't work.
++		 */
++		b->flags &= ~V4L2_BUF_FLAG_NO_CACHE_INVALIDATE;
++		b->flags &= ~V4L2_BUF_FLAG_NO_CACHE_CLEAN;
 +		return;
++	}
 +
 +	/*
 +	 * ->finish() cache sync can be avoided when queue direction is
@@ -83,7 +75,7 @@ index eb5d5db96552..2a604bd7793a 100644
  static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
  				    struct v4l2_buffer *b, bool is_prepare,
  				    struct media_request **p_req)
-@@ -381,6 +429,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
+@@ -381,6 +428,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
  	}
  
  	if (!vb->prepared) {
@@ -114,5 +106,5 @@ index 7f39d9fffc8c..ccc5c498d3e3 100644
   * vb2_plane_vaddr() - Return a kernel virtual address of a given plane.
   * @vb:		pointer to &struct vb2_buffer to which the plane in
 -- 
-2.25.1
+2.25.1.481.gfbce0eb801-goog
 
