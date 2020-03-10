@@ -1,4 +1,4 @@
-From 0594d88b14b5522a7b030ef9d2c6af67e7761cbb Mon Sep 17 00:00:00 2001
+From 9e967aa4555cf0479b837efa4182fd8af35e2b6b Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Wed, 26 Feb 2020 14:59:37 +0900
 Subject: [PATCH 06/12] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -9,6 +9,12 @@ allocation during CREATE_BUFS and REQBUFS ioctl calls.
 = CREATE_BUFS
 
   struct v4l2_create_buffers has seven 4-byte reserved areas,
+  so reserved[0] is renamed to ->flags. The struct, thus, now
+  has six reserved 4-byte regions.
+
+= CREATE_BUFS32
+
+  struct v4l2_create_buffers32 has seven 4-byte reserved areas,
   so reserved[0] is renamed to ->flags. The struct, thus, now
   has six reserved 4-byte regions.
 
@@ -25,9 +31,10 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  .../media/uapi/v4l/vidioc-create-bufs.rst     |  7 ++++-
  .../media/uapi/v4l/vidioc-reqbufs.rst         | 11 +++++--
  .../media/common/videobuf2/videobuf2-v4l2.c   | 31 +++++++++++++++++--
+ drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 ++++--
  drivers/media/v4l2-core/v4l2-ioctl.c          |  5 +--
  include/uapi/linux/videodev2.h                | 10 ++++--
- 5 files changed, 52 insertions(+), 12 deletions(-)
+ 6 files changed, 59 insertions(+), 14 deletions(-)
 
 diff --git a/Documentation/media/uapi/v4l/vidioc-create-bufs.rst b/Documentation/media/uapi/v4l/vidioc-create-bufs.rst
 index bd08e4f77ae4..a9c6c89f5098 100644
@@ -48,7 +55,7 @@ index bd08e4f77ae4..a9c6c89f5098 100644
  	must set the array to zero.
  
 diff --git a/Documentation/media/uapi/v4l/vidioc-reqbufs.rst b/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
-index cde6b6719615..2d8f2702be5c 100644
+index c9cc7158dddb..f3dedc36bbe2 100644
 --- a/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
 +++ b/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
 @@ -112,10 +112,17 @@ aborting or finishing any DMA in progress, an implicit
@@ -72,10 +79,10 @@ index cde6b6719615..2d8f2702be5c 100644
  .. tabularcolumns:: |p{6.1cm}|p{2.2cm}|p{8.7cm}|
  
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 6111d74f68c9..b4b379f3bf98 100644
+index 1219be0f99e3..0a6bd4a1f58e 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-@@ -722,9 +722,18 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+@@ -721,9 +721,18 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
  int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
  {
  	int ret = vb2_verify_memory_type(q, req->memory, req->type);
@@ -95,7 +102,7 @@ index 6111d74f68c9..b4b379f3bf98 100644
  }
  EXPORT_SYMBOL_GPL(vb2_reqbufs);
  
-@@ -753,6 +762,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+@@ -752,6 +761,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
  	unsigned requested_sizes[VIDEO_MAX_PLANES];
  	struct v4l2_format *f = &create->format;
  	int ret = vb2_verify_memory_type(q, create->memory, f->type);
@@ -103,7 +110,7 @@ index 6111d74f68c9..b4b379f3bf98 100644
  	unsigned i;
  
  	fill_buf_caps(q, &create->capabilities);
-@@ -798,7 +808,14 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+@@ -797,7 +807,14 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
  	for (i = 0; i < requested_planes; i++)
  		if (requested_sizes[i] == 0)
  			return -EINVAL;
@@ -119,7 +126,7 @@ index 6111d74f68c9..b4b379f3bf98 100644
  		&create->count, requested_planes, requested_sizes);
  }
  EXPORT_SYMBOL_GPL(vb2_create_bufs);
-@@ -968,13 +985,21 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
+@@ -967,13 +984,21 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
  {
  	struct video_device *vdev = video_devdata(file);
  	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
@@ -142,6 +149,47 @@ index 6111d74f68c9..b4b379f3bf98 100644
  	/* If count == 0, then the owner has released all buffers and he
  	   is no longer owner of the queue. Otherwise we have a new owner. */
  	if (res == 0)
+diff --git a/drivers/media/v4l2-core/v4l2-compat-ioctl32.c b/drivers/media/v4l2-core/v4l2-compat-ioctl32.c
+index a99e82ec9ab6..aa162ed6d01c 100644
+--- a/drivers/media/v4l2-core/v4l2-compat-ioctl32.c
++++ b/drivers/media/v4l2-core/v4l2-compat-ioctl32.c
+@@ -246,6 +246,8 @@ struct v4l2_format32 {
+  * @memory:	buffer memory type
+  * @format:	frame format, for which buffers are requested
+  * @capabilities: capabilities of this buffer type.
++ * @flags:	additional buffer management attributes (ignored if queue
++ *		does not have V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS capability).
+  * @reserved:	future extensions
+  */
+ struct v4l2_create_buffers32 {
+@@ -254,7 +256,8 @@ struct v4l2_create_buffers32 {
+ 	__u32			memory;	/* enum v4l2_memory */
+ 	struct v4l2_format32	format;
+ 	__u32			capabilities;
+-	__u32			reserved[7];
++	__u32			flags;
++	__u32			reserved[6];
+ };
+ 
+ static int __bufsize_v4l2_format(struct v4l2_format32 __user *p32, u32 *size)
+@@ -355,7 +358,8 @@ static int get_v4l2_create32(struct v4l2_create_buffers __user *p64,
+ {
+ 	if (!access_ok(p32, sizeof(*p32)) ||
+ 	    copy_in_user(p64, p32,
+-			 offsetof(struct v4l2_create_buffers32, format)))
++			 offsetof(struct v4l2_create_buffers32, format)) ||
++	    assign_in_user(&p64->flags, &p32->flags))
+ 		return -EFAULT;
+ 	return __get_v4l2_format32(&p64->format, &p32->format,
+ 				   aux_buf, aux_space);
+@@ -417,6 +421,7 @@ static int put_v4l2_create32(struct v4l2_create_buffers __user *p64,
+ 	    copy_in_user(p32, p64,
+ 			 offsetof(struct v4l2_create_buffers32, format)) ||
+ 	    assign_in_user(&p32->capabilities, &p64->capabilities) ||
++	    assign_in_user(&p32->flags, &p64->flags) ||
+ 	    copy_in_user(p32->reserved, p64->reserved, sizeof(p64->reserved)))
+ 		return -EFAULT;
+ 	return __put_v4l2_format32(&p64->format, &p32->format);
 diff --git a/drivers/media/v4l2-core/v4l2-ioctl.c b/drivers/media/v4l2-core/v4l2-ioctl.c
 index fbcc7a20eedf..53b87bfd50d7 100644
 --- a/drivers/media/v4l2-core/v4l2-ioctl.c
@@ -201,5 +249,5 @@ index e92c29864730..c6c1cccbb5c1 100644
  
  /*
 -- 
-2.25.1
+2.25.1.481.gfbce0eb801-goog
 
