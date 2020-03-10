@@ -1,4 +1,4 @@
-From 4680994d9623a85931e8bfc1b565f07136e0108f Mon Sep 17 00:00:00 2001
+From fca55807b65947487223aeb7ab7d64bccdda6dcd Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 04/12] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -16,17 +16,41 @@ queue supports user-space cache management hints.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- Documentation/media/uapi/v4l/buffer.rst       | 31 +++++++++++++++++++
- .../media/uapi/v4l/vidioc-reqbufs.rst         |  9 ++++++
- .../media/common/videobuf2/videobuf2-v4l2.c   |  2 ++
+ Documentation/media/uapi/v4l/buffer.rst       | 41 ++++++++++++++++++-
+ .../media/uapi/v4l/vidioc-reqbufs.rst         |  9 ++++
+ .../media/common/videobuf2/videobuf2-v4l2.c   |  2 +
  include/uapi/linux/videodev2.h                |  3 ++
- 4 files changed, 45 insertions(+)
+ 4 files changed, 53 insertions(+), 2 deletions(-)
 
 diff --git a/Documentation/media/uapi/v4l/buffer.rst b/Documentation/media/uapi/v4l/buffer.rst
-index 3112300c2fa0..82bad4dbec16 100644
+index 3112300c2fa0..b6dcf9bedfff 100644
 --- a/Documentation/media/uapi/v4l/buffer.rst
 +++ b/Documentation/media/uapi/v4l/buffer.rst
-@@ -681,6 +681,37 @@ Buffer Flags
+@@ -577,7 +577,10 @@ Buffer Flags
+ 	applications shall use this flag if the data captured in the
+ 	buffer is not going to be touched by the CPU, instead the buffer
+ 	will, probably, be passed on to a DMA-capable hardware unit for
+-	further processing or output.
++	further processing or output. This flag is ignored unless the
++	queue reports
++	:ref:`V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS <V4L2-BUF-CAP-SUPPORTS-CACHE-HINTS>`
++	capability.
+     * .. _`V4L2-BUF-FLAG-NO-CACHE-CLEAN`:
+ 
+       - ``V4L2_BUF_FLAG_NO_CACHE_CLEAN``
+@@ -585,7 +588,10 @@ Buffer Flags
+       - Caches do not have to be cleaned for this buffer. Typically
+ 	applications shall use this flag for output buffers if the data in
+ 	this buffer has not been created by the CPU but by some
+-	DMA-capable unit, in which case caches have not been used.
++	DMA-capable unit, in which case caches have not been used. This flag
++	is ignored unless the queue reports
++	:ref:`V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS <V4L2-BUF-CAP-SUPPORTS-CACHE-HINTS>`
++	capability.
+     * .. _`V4L2-BUF-FLAG-M2M-HOLD-CAPTURE-BUF`:
+ 
+       - ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF``
+@@ -681,6 +687,37 @@ Buffer Flags
  
      \normalsize
  
@@ -65,7 +89,7 @@ index 3112300c2fa0..82bad4dbec16 100644
  .. c:type:: v4l2_memory
  
 diff --git a/Documentation/media/uapi/v4l/vidioc-reqbufs.rst b/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
-index d0c643db477a..cde6b6719615 100644
+index d0c643db477a..c9cc7158dddb 100644
 --- a/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
 +++ b/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
 @@ -126,6 +126,7 @@ aborting or finishing any DMA in progress, an implicit
@@ -82,8 +106,8 @@ index d0c643db477a..cde6b6719615 100644
  	capture buffer until the OUTPUT timestamp changes.
 +    * - ``V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS``
 +      - 0x00000040
-+      - Set when the queue/buffer supports memory consistency and cache
-+        management hints. See
++      - Set for ``V4L2_MEMORY_MMAP`` queues which support memory consistency
++        and cache management hints. See
 +        :ref:`V4L2_FLAG_MEMORY_NON_CONSISTENT <V4L2-FLAG-MEMORY-NON-CONSISTENT>`,
 +        :ref:`V4L2_BUF_FLAG_NO_CACHE_INVALIDATE <V4L2-BUF-FLAG-NO-CACHE-INVALIDATE>` and
 +        :ref:`V4L2_BUF_FLAG_NO_CACHE_CLEAN <V4L2-BUF-FLAG-NO-CACHE-CLEAN>`.
@@ -92,10 +116,10 @@ index d0c643db477a..cde6b6719615 100644
  Return Value
  ============
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 2a604bd7793a..c847bcea6e95 100644
+index f13851212cc8..6d51600e070a 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-@@ -711,6 +711,8 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+@@ -710,6 +710,8 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
  		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
  	if (q->subsystem_flags & VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF)
  		*caps |= V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF;
@@ -126,5 +150,5 @@ index 5f9357dcb060..e92c29864730 100644
  /**
   * struct v4l2_plane - plane info for multi-planar buffers
 -- 
-2.25.1
+2.25.1.481.gfbce0eb801-goog
 
