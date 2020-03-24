@@ -1,4 +1,4 @@
-From e0a3ec2abba38c8922529630615e7c45f2706da2 Mon Sep 17 00:00:00 2001
+From 596834ea280e2bca82552223c5eff2d11ff7cb6f Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 05/12] videobuf2: add queue memory consistency parameter
@@ -182,15 +182,15 @@ index 6974f1731529..959d110407a4 100644
  		ctx->state = DVB_VB2_STATE_NONE;
  		dprintk(1, "[%s] count=%d size=%d errno=%d\n", ctx->name,
 diff --git a/include/media/videobuf2-core.h b/include/media/videobuf2-core.h
-index ccc5c498d3e3..8d5a7cd40632 100644
+index ccc5c498d3e3..9e68fe043a6c 100644
 --- a/include/media/videobuf2-core.h
 +++ b/include/media/videobuf2-core.h
 @@ -740,6 +740,8 @@ void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
   * vb2_core_reqbufs() - Initiate streaming.
   * @q:		pointer to &struct vb2_queue with videobuf2 queue.
   * @memory:	memory type, as defined by &enum vb2_memory.
-+ * @flags:	auxiliary queue/buffer management flags. Current the only used
-+ *		flag is %V4L2_FLAG_MEMORY_NON_CONSISTENT.
++ * @flags:	auxiliary queue/buffer management flags. Currently, the only
++ *		used flag is %V4L2_FLAG_MEMORY_NON_CONSISTENT.
   * @count:	requested buffer count.
   *
   * Videobuf2 core helper to implement VIDIOC_REQBUF() operation. It is called

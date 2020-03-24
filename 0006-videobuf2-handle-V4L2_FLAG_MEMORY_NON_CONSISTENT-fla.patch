@@ -1,4 +1,4 @@
-From c63ce4530ee832c2daabb169cd00821746cf257c Mon Sep 17 00:00:00 2001
+From 562c7a158f86d0faf35b453ba2dbb754fbd60a47 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 24 Mar 2020 14:32:33 +0900
 Subject: [PATCH 06/12] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
