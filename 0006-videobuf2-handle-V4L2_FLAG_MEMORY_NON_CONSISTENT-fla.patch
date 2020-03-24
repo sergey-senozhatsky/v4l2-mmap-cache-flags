@@ -1,6 +1,6 @@
-From 9e967aa4555cf0479b837efa4182fd8af35e2b6b Mon Sep 17 00:00:00 2001
+From c63ce4530ee832c2daabb169cd00821746cf257c Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Wed, 26 Feb 2020 14:59:37 +0900
+Date: Tue, 24 Mar 2020 14:32:33 +0900
 Subject: [PATCH 06/12] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 
 This patch lets user-space to request a non-consistent memory
@@ -28,13 +28,14 @@ allocation during CREATE_BUFS and REQBUFS ioctl calls.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- .../media/uapi/v4l/vidioc-create-bufs.rst     |  7 ++++-
- .../media/uapi/v4l/vidioc-reqbufs.rst         | 11 +++++--
- .../media/common/videobuf2/videobuf2-v4l2.c   | 31 +++++++++++++++++--
- drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 ++++--
- drivers/media/v4l2-core/v4l2-ioctl.c          |  5 +--
- include/uapi/linux/videodev2.h                | 10 ++++--
- 6 files changed, 59 insertions(+), 14 deletions(-)
+ .../media/uapi/v4l/vidioc-create-bufs.rst     |  7 +++++-
+ .../media/uapi/v4l/vidioc-reqbufs.rst         | 11 ++++++++--
+ .../media/common/videobuf2/videobuf2-core.c   | 16 ++++++++++----
+ .../media/common/videobuf2/videobuf2-v4l2.c   | 22 +++++++++++++++----
+ drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 ++++++--
+ drivers/media/v4l2-core/v4l2-ioctl.c          |  5 +----
+ include/uapi/linux/videodev2.h                | 10 +++++++--
+ 7 files changed, 61 insertions(+), 19 deletions(-)
 
 diff --git a/Documentation/media/uapi/v4l/vidioc-create-bufs.rst b/Documentation/media/uapi/v4l/vidioc-create-bufs.rst
 index bd08e4f77ae4..a9c6c89f5098 100644
@@ -78,74 +79,118 @@ index c9cc7158dddb..f3dedc36bbe2 100644
  
  .. tabularcolumns:: |p{6.1cm}|p{2.2cm}|p{8.7cm}|
  
+diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
+index 7c19c42521a1..d16f47022552 100644
+--- a/drivers/media/common/videobuf2/videobuf2-core.c
++++ b/drivers/media/common/videobuf2/videobuf2-core.c
+@@ -691,9 +691,13 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+ {
+ 	unsigned int num_buffers, allocated_buffers, num_planes = 0;
+ 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
++	bool consistent_mem = true;
+ 	unsigned int i;
+ 	int ret;
+ 
++	if (flags & V4L2_FLAG_MEMORY_NON_CONSISTENT)
++		consistent_mem = false;
++
+ 	if (q->streaming) {
+ 		dprintk(1, "streaming active\n");
+ 		return -EBUSY;
+@@ -706,7 +710,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+ 
+ 	if (*count == 0 || q->num_buffers != 0 ||
+ 	    (q->memory != VB2_MEMORY_UNKNOWN && q->memory != memory) ||
+-	    !verify_consistency_attr(q, true)) {
++	    !verify_consistency_attr(q, consistent_mem)) {
+ 		/*
+ 		 * We already have buffers allocated, so first check if they
+ 		 * are not in use and can be freed.
+@@ -753,7 +757,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+ 	if (ret)
+ 		return ret;
+ 
+-	set_queue_consistency(q, true);
++	set_queue_consistency(q, consistent_mem);
+ 	/* Check that driver has set sane values */
+ 	if (WARN_ON(!num_planes))
+ 		return -EINVAL;
+@@ -834,8 +838,12 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
+ {
+ 	unsigned int num_planes = 0, num_buffers, allocated_buffers;
+ 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
++	bool consistent_mem = true;
+ 	int ret;
+ 
++	if (flags & V4L2_FLAG_MEMORY_NON_CONSISTENT)
++		consistent_mem = false;
++
+ 	if (q->num_buffers == VB2_MAX_FRAME) {
+ 		dprintk(1, "maximum number of buffers already allocated\n");
+ 		return -ENOBUFS;
+@@ -854,7 +862,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
+ 			dprintk(1, "memory model mismatch\n");
+ 			return -EINVAL;
+ 		}
+-		if (!verify_consistency_attr(q, true))
++		if (!verify_consistency_attr(q, consistent_mem))
+ 			return -EINVAL;
+ 	}
+ 
+@@ -874,7 +882,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
+ 	if (ret)
+ 		return ret;
+ 
+-	set_queue_consistency(q, true);
++	set_queue_consistency(q, consistent_mem);
+ 	/* Finally, allocate buffers and video memory */
+ 	allocated_buffers = __vb2_queue_alloc(q, memory, num_buffers,
+ 				num_planes, plane_sizes);
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 1219be0f99e3..0a6bd4a1f58e 100644
+index 9d0a9d1796ab..599c1e952348 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-@@ -721,9 +721,18 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
- int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
+@@ -722,8 +722,13 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
  {
  	int ret = vb2_verify_memory_type(q, req->memory, req->type);
-+	bool consistent = true;
-+
+ 
 +	if (!vb2_queue_allows_cache_hints(q))
 +		req->flags &= ~V4L2_FLAG_MEMORY_NON_CONSISTENT;
 +
-+	if (req->flags & V4L2_FLAG_MEMORY_NON_CONSISTENT)
-+		consistent = false;
- 
  	fill_buf_caps(q, &req->capabilities);
--	return ret ? ret : vb2_core_reqbufs(q, req->memory, true, &req->count);
+-	return ret ? ret : vb2_core_reqbufs(q, req->memory, 0, &req->count);
 +	if (ret)
 +		return ret;
-+	return vb2_core_reqbufs(q, req->memory, consistent, &req->count);
++	return vb2_core_reqbufs(q, req->memory, req->flags, &req->count);
  }
  EXPORT_SYMBOL_GPL(vb2_reqbufs);
  
-@@ -752,6 +761,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
- 	unsigned requested_sizes[VIDEO_MAX_PLANES];
- 	struct v4l2_format *f = &create->format;
- 	int ret = vb2_verify_memory_type(q, create->memory, f->type);
-+	bool consistent = true;
- 	unsigned i;
- 
- 	fill_buf_caps(q, &create->capabilities);
-@@ -797,7 +807,14 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+@@ -797,8 +802,13 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
  	for (i = 0; i < requested_planes; i++)
  		if (requested_sizes[i] == 0)
  			return -EINVAL;
 -	return ret ? ret : vb2_core_create_bufs(q, create->memory, true,
+-		&create->count, requested_planes, requested_sizes);
 +
 +	if (!vb2_queue_allows_cache_hints(q))
 +		create->flags &= ~V4L2_FLAG_MEMORY_NON_CONSISTENT;
 +
-+	if (create->flags & V4L2_FLAG_MEMORY_NON_CONSISTENT)
-+		consistent = false;
-+
-+	return ret ? ret : vb2_core_create_bufs(q, create->memory, consistent,
- 		&create->count, requested_planes, requested_sizes);
++	return ret ? ret : vb2_core_create_bufs(q, create->memory,
++		create->flags, &create->count, requested_planes,
++		requested_sizes);
  }
  EXPORT_SYMBOL_GPL(vb2_create_bufs);
-@@ -967,13 +984,21 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
- {
- 	struct video_device *vdev = video_devdata(file);
- 	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
-+	bool consistent = true;
  
- 	fill_buf_caps(vdev->queue, &p->capabilities);
- 	if (res)
+@@ -973,7 +983,11 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
  		return res;
  	if (vb2_queue_is_busy(vdev, file))
  		return -EBUSY;
--	res = vb2_core_reqbufs(vdev->queue, p->memory, true, &p->count);
+-	res = vb2_core_reqbufs(vdev->queue, p->memory, 0, &p->count);
 +
 +	if (!vb2_queue_allows_cache_hints(vdev->queue))
 +		p->flags &= ~V4L2_FLAG_MEMORY_NON_CONSISTENT;
 +
-+	if (p->flags & V4L2_FLAG_MEMORY_NON_CONSISTENT)
-+		consistent = false;
-+
-+	res = vb2_core_reqbufs(vdev->queue, p->memory, consistent, &p->count);
++	res = vb2_core_reqbufs(vdev->queue, p->memory, p->flags, &p->count);
  	/* If count == 0, then the owner has released all buffers and he
  	   is no longer owner of the queue. Otherwise we have a new owner. */
  	if (res == 0)
@@ -191,10 +236,10 @@ index a99e82ec9ab6..aa162ed6d01c 100644
  		return -EFAULT;
  	return __put_v4l2_format32(&p64->format, &p32->format);
 diff --git a/drivers/media/v4l2-core/v4l2-ioctl.c b/drivers/media/v4l2-core/v4l2-ioctl.c
-index fbcc7a20eedf..53b87bfd50d7 100644
+index b2ef8e60ea7d..fb881fed5ce6 100644
 --- a/drivers/media/v4l2-core/v4l2-ioctl.c
 +++ b/drivers/media/v4l2-core/v4l2-ioctl.c
-@@ -1973,9 +1973,6 @@ static int v4l_reqbufs(const struct v4l2_ioctl_ops *ops,
+@@ -1978,9 +1978,6 @@ static int v4l_reqbufs(const struct v4l2_ioctl_ops *ops,
  
  	if (ret)
  		return ret;
@@ -204,7 +249,7 @@ index fbcc7a20eedf..53b87bfd50d7 100644
  	return ops->vidioc_reqbufs(file, fh, p);
  }
  
-@@ -2015,7 +2012,7 @@ static int v4l_create_bufs(const struct v4l2_ioctl_ops *ops,
+@@ -2020,7 +2017,7 @@ static int v4l_create_bufs(const struct v4l2_ioctl_ops *ops,
  	if (ret)
  		return ret;
  
@@ -214,10 +259,10 @@ index fbcc7a20eedf..53b87bfd50d7 100644
  	v4l_sanitize_format(&create->format);
  
 diff --git a/include/uapi/linux/videodev2.h b/include/uapi/linux/videodev2.h
-index e92c29864730..c6c1cccbb5c1 100644
+index 0d4deba8fe30..f0a4694dd7c6 100644
 --- a/include/uapi/linux/videodev2.h
 +++ b/include/uapi/linux/videodev2.h
-@@ -938,7 +938,10 @@ struct v4l2_requestbuffers {
+@@ -943,7 +943,10 @@ struct v4l2_requestbuffers {
  	__u32			type;		/* enum v4l2_buf_type */
  	__u32			memory;		/* enum v4l2_memory */
  	__u32			capabilities;
@@ -229,7 +274,7 @@ index e92c29864730..c6c1cccbb5c1 100644
  };
  
  /* capabilities for struct v4l2_requestbuffers and v4l2_create_buffers */
-@@ -2438,6 +2441,8 @@ struct v4l2_dbg_chip_info {
+@@ -2447,6 +2450,8 @@ struct v4l2_dbg_chip_info {
   * @memory:	enum v4l2_memory; buffer memory type
   * @format:	frame format, for which buffers are requested
   * @capabilities: capabilities of this buffer type.
@@ -238,7 +283,7 @@ index e92c29864730..c6c1cccbb5c1 100644
   * @reserved:	future extensions
   */
  struct v4l2_create_buffers {
-@@ -2446,7 +2451,8 @@ struct v4l2_create_buffers {
+@@ -2455,7 +2460,8 @@ struct v4l2_create_buffers {
  	__u32			memory;
  	struct v4l2_format	format;
  	__u32			capabilities;
@@ -249,5 +294,5 @@ index e92c29864730..c6c1cccbb5c1 100644
  
  /*
 -- 
-2.25.1.481.gfbce0eb801-goog
+2.25.1.696.g5e7596f4ac-goog
 

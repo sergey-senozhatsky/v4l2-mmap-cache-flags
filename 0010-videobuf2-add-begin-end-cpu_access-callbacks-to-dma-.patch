@@ -1,4 +1,4 @@
-From afa31555d67272fb6dc5e4c9d22fda140363c00a Mon Sep 17 00:00:00 2001
+From 838ede0f696b473d23bf9a02f0667999ab13f854 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:36 +0900
 Subject: [PATCH 10/12] videobuf2: add begin/end cpu_access callbacks to
@@ -77,5 +77,5 @@ index d3a3ee5b597b..6787e2cb905e 100644
  	.mmap = vb2_dc_dmabuf_ops_mmap,
  	.release = vb2_dc_dmabuf_ops_release,
 -- 
-2.25.1.481.gfbce0eb801-goog
+2.25.1.696.g5e7596f4ac-goog
 

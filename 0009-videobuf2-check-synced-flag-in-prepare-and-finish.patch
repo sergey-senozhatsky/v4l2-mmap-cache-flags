@@ -1,4 +1,4 @@
-From 9ca1e429108b2dd3375015fe50a0133a327a9ec8 Mon Sep 17 00:00:00 2001
+From 9052ef332a37423e3b303de8e0c45149bc67322f Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:36 +0900
 Subject: [PATCH 09/12] videobuf2: check ->synced flag in prepare() and
@@ -13,7 +13,7 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  1 file changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index 30f9d6967429..7218b97ed35c 100644
+index 5409e15b6af4..5a69005b7d59 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
 @@ -304,6 +304,9 @@ static void __vb2_buf_mem_prepare(struct vb2_buffer *vb)
@@ -36,7 +36,7 @@ index 30f9d6967429..7218b97ed35c 100644
  	if (vb->need_cache_sync_on_finish) {
  		for (plane = 0; plane < vb->num_planes; ++plane)
  			call_void_memop(vb, finish,
-@@ -1991,8 +1997,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
+@@ -2000,8 +2006,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
  				call_void_vb_qop(vb, buf_request_complete, vb);
  		}
  
@@ -47,5 +47,5 @@ index 30f9d6967429..7218b97ed35c 100644
  		if (vb->prepared) {
  			call_void_vb_qop(vb, buf_finish, vb);
 -- 
-2.25.1.481.gfbce0eb801-goog
+2.25.1.696.g5e7596f4ac-goog
 

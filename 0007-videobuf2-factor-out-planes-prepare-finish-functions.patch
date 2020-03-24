@@ -1,4 +1,4 @@
-From ffe20bb4415cbdda285215c09db54437a4a1cfd7 Mon Sep 17 00:00:00 2001
+From f395c905cf47ecaa7c3b8bc5e751fb20cd842a46 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 07/12] videobuf2: factor out planes prepare/finish functions
@@ -11,7 +11,7 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  1 file changed, 31 insertions(+), 21 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index a67dd262d0ce..9098c44bc3db 100644
+index d16f47022552..0be31a11c913 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
 @@ -296,6 +296,32 @@ static void __vb2_buf_dmabuf_put(struct vb2_buffer *vb)
@@ -47,7 +47,7 @@ index a67dd262d0ce..9098c44bc3db 100644
  /*
   * __setup_offsets() - setup unique offsets ("cookies") for every plane in
   * the buffer.
-@@ -951,7 +977,6 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
+@@ -960,7 +986,6 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
  {
  	struct vb2_queue *q = vb->vb2_queue;
  	unsigned long flags;
@@ -55,7 +55,7 @@ index a67dd262d0ce..9098c44bc3db 100644
  
  	if (WARN_ON(vb->state != VB2_BUF_STATE_ACTIVE))
  		return;
-@@ -971,12 +996,8 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
+@@ -980,12 +1005,8 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
  	dprintk(4, "done processing on buffer %d, state: %d\n",
  			vb->index, state);
  
@@ -70,7 +70,7 @@ index a67dd262d0ce..9098c44bc3db 100644
  
  	spin_lock_irqsave(&q->done_lock, flags);
  	if (state == VB2_BUF_STATE_QUEUED) {
-@@ -1301,7 +1322,6 @@ static int __buf_prepare(struct vb2_buffer *vb)
+@@ -1310,7 +1331,6 @@ static int __buf_prepare(struct vb2_buffer *vb)
  {
  	struct vb2_queue *q = vb->vb2_queue;
  	enum vb2_buffer_state orig_state = vb->state;
@@ -78,7 +78,7 @@ index a67dd262d0ce..9098c44bc3db 100644
  	int ret;
  
  	if (q->error) {
-@@ -1345,11 +1365,7 @@ static int __buf_prepare(struct vb2_buffer *vb)
+@@ -1354,11 +1374,7 @@ static int __buf_prepare(struct vb2_buffer *vb)
  		return ret;
  	}
  
@@ -91,7 +91,7 @@ index a67dd262d0ce..9098c44bc3db 100644
  	vb->prepared = 1;
  	vb->state = orig_state;
  
-@@ -1969,14 +1985,8 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
+@@ -1978,14 +1994,8 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
  				call_void_vb_qop(vb, buf_request_complete, vb);
  		}
  
@@ -109,5 +109,5 @@ index a67dd262d0ce..9098c44bc3db 100644
  		if (vb->prepared) {
  			call_void_vb_qop(vb, buf_finish, vb);
 -- 
-2.25.1.481.gfbce0eb801-goog
+2.25.1.696.g5e7596f4ac-goog
 
