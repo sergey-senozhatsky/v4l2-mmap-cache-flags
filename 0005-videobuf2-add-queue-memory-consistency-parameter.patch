@@ -1,4 +1,4 @@
-From b47443f826963927b72eaa7de6b6aee3fe666f13 Mon Sep 17 00:00:00 2001
+From 29c5bfc62ebbc6c0cc5a06ac0d8976a62e94a173 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 05/12] videobuf2: add queue memory consistency parameter
@@ -146,7 +146,7 @@ index 44d65f5be845..f1a65925bc17 100644
  		dprintk(3, "file io emulator closed\n");
  	}
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 6d51600e070a..9d0a9d1796ab 100644
+index 0864060f6ac0..541930801ff6 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
 @@ -723,7 +723,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
@@ -228,5 +228,5 @@ index ccc5c498d3e3..9e68fe043a6c 100644
  
  /**
 -- 
-2.25.1.696.g5e7596f4ac-goog
+2.26.0
 

@@ -1,4 +1,4 @@
-From a2c6550dfa9c02099f899caa357656e86c80cccc Mon Sep 17 00:00:00 2001
+From c44502a59655289a972a19bcf5b621d0c40a4997 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 08/12] videobuf2: do not sync caches when we are allowed not
@@ -46,5 +46,5 @@ index 0be31a11c913..5409e15b6af4 100644
  }
  
 -- 
-2.25.1.696.g5e7596f4ac-goog
+2.26.0
 

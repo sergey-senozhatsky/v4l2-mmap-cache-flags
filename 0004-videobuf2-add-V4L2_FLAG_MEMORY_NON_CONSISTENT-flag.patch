@@ -1,4 +1,4 @@
-From 5f345d8c398d2f9bf6211e01929ac6a00b9bb7e8 Mon Sep 17 00:00:00 2001
+From f321089dbcfd34d2a8e020aa6665c140007eb879 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 04/12] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -116,14 +116,14 @@ index d0c643db477a..c9cc7158dddb 100644
  Return Value
  ============
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index f13851212cc8..6d51600e070a 100644
+index f13851212cc8..0864060f6ac0 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
 @@ -710,6 +710,8 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
  		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
  	if (q->subsystem_flags & VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF)
  		*caps |= V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF;
-+	if (q->allow_cache_hints && (q->io_modes & VB2_MMAP))
++	if (q->allow_cache_hints && q->memory == VB2_MEMORY_MMAP)
 +		*caps |= V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS;
  #ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
  	if (q->supports_requests)
@@ -150,5 +150,5 @@ index 9817b7e2c968..0d4deba8fe30 100644
  /**
   * struct v4l2_plane - plane info for multi-planar buffers
 -- 
-2.25.1.696.g5e7596f4ac-goog
+2.26.0
 

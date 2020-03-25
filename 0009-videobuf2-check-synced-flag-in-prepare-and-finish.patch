@@ -1,4 +1,4 @@
-From 78a8a5b41979c0608a4f0d7840b0e1fd677c573a Mon Sep 17 00:00:00 2001
+From a7cb49cdc71bec85586e88329959e742b3371585 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:36 +0900
 Subject: [PATCH 09/12] videobuf2: check ->synced flag in prepare() and
@@ -47,5 +47,5 @@ index 5409e15b6af4..5a69005b7d59 100644
  		if (vb->prepared) {
  			call_void_vb_qop(vb, buf_finish, vb);
 -- 
-2.25.1.696.g5e7596f4ac-goog
+2.26.0
 
