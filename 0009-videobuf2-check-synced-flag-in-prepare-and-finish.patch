@@ -1,4 +1,4 @@
-From b0ebfb992744576bde2a31b5c6aa48f81a8608f7 Mon Sep 17 00:00:00 2001
+From 78a8a5b41979c0608a4f0d7840b0e1fd677c573a Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:36 +0900
 Subject: [PATCH 09/12] videobuf2: check ->synced flag in prepare() and

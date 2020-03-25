@@ -1,4 +1,4 @@
-From 596834ea280e2bca82552223c5eff2d11ff7cb6f Mon Sep 17 00:00:00 2001
+From b47443f826963927b72eaa7de6b6aee3fe666f13 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 05/12] videobuf2: add queue memory consistency parameter
@@ -13,17 +13,17 @@ which don't match queue's consistency model will fail.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- .../media/common/videobuf2/videobuf2-core.c   | 50 +++++++++++++++----
+ .../media/common/videobuf2/videobuf2-core.c   | 52 +++++++++++++++----
  .../media/common/videobuf2/videobuf2-v4l2.c   |  6 +--
  drivers/media/dvb-core/dvb_vb2.c              |  2 +-
  include/media/videobuf2-core.h                |  8 ++-
- 4 files changed, 50 insertions(+), 16 deletions(-)
+ 4 files changed, 52 insertions(+), 16 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index 44d65f5be845..7c19c42521a1 100644
+index 44d65f5be845..f1a65925bc17 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
-@@ -664,8 +664,30 @@ int vb2_verify_memory_type(struct vb2_queue *q,
+@@ -664,11 +664,34 @@ int vb2_verify_memory_type(struct vb2_queue *q,
  }
  EXPORT_SYMBOL(vb2_verify_memory_type);
  
@@ -55,25 +55,29 @@ index 44d65f5be845..7c19c42521a1 100644
  {
  	unsigned int num_buffers, allocated_buffers, num_planes = 0;
  	unsigned plane_sizes[VB2_MAX_PLANES] = { };
-@@ -683,7 +705,8 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
++	bool consistent_mem = true;
+ 	unsigned int i;
+ 	int ret;
+ 
+@@ -683,7 +706,8 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
  	}
  
  	if (*count == 0 || q->num_buffers != 0 ||
 -	    (q->memory != VB2_MEMORY_UNKNOWN && q->memory != memory)) {
 +	    (q->memory != VB2_MEMORY_UNKNOWN && q->memory != memory) ||
-+	    !verify_consistency_attr(q, true)) {
++	    !verify_consistency_attr(q, consistent_mem)) {
  		/*
  		 * We already have buffers allocated, so first check if they
  		 * are not in use and can be freed.
-@@ -730,6 +753,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -730,6 +754,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
  	if (ret)
  		return ret;
  
-+	set_queue_consistency(q, true);
++	set_queue_consistency(q, consistent_mem);
  	/* Check that driver has set sane values */
  	if (WARN_ON(!num_planes))
  		return -EINVAL;
-@@ -804,8 +828,9 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -804,11 +829,13 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
  EXPORT_SYMBOL_GPL(vb2_core_reqbufs);
  
  int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
@@ -85,7 +89,11 @@ index 44d65f5be845..7c19c42521a1 100644
  {
  	unsigned int num_planes = 0, num_buffers, allocated_buffers;
  	unsigned plane_sizes[VB2_MAX_PLANES] = { };
-@@ -824,9 +849,13 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
++	bool consistent_mem = true;
+ 	int ret;
+ 
+ 	if (q->num_buffers == VB2_MAX_FRAME) {
+@@ -824,9 +851,13 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
  		memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
  		q->memory = memory;
  		q->waiting_for_buffers = !q->is_output;
@@ -97,20 +105,20 @@ index 44d65f5be845..7c19c42521a1 100644
 +			dprintk(1, "memory model mismatch\n");
 +			return -EINVAL;
 +		}
-+		if (!verify_consistency_attr(q, true))
++		if (!verify_consistency_attr(q, consistent_mem))
 +			return -EINVAL;
  	}
  
  	num_buffers = min(*count, VB2_MAX_FRAME - q->num_buffers);
-@@ -845,6 +874,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -845,6 +876,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
  	if (ret)
  		return ret;
  
-+	set_queue_consistency(q, true);
++	set_queue_consistency(q, consistent_mem);
  	/* Finally, allocate buffers and video memory */
  	allocated_buffers = __vb2_queue_alloc(q, memory, num_buffers,
  				num_planes, plane_sizes);
-@@ -2498,7 +2528,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
+@@ -2498,7 +2530,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
  	fileio->memory = VB2_MEMORY_MMAP;
  	fileio->type = q->type;
  	q->fileio = fileio;
@@ -119,7 +127,7 @@ index 44d65f5be845..7c19c42521a1 100644
  	if (ret)
  		goto err_kfree;
  
-@@ -2555,7 +2585,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
+@@ -2555,7 +2587,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
  
  err_reqbufs:
  	fileio->count = 0;
@@ -128,7 +136,7 @@ index 44d65f5be845..7c19c42521a1 100644
  
  err_kfree:
  	q->fileio = NULL;
-@@ -2575,7 +2605,7 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q)
+@@ -2575,7 +2607,7 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q)
  		vb2_core_streamoff(q, q->type);
  		q->fileio = NULL;
  		fileio->count = 0;
