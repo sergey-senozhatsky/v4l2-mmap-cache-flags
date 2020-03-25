@@ -1,0 +1,59 @@
+From dd11b2928e6492ae34acc31fbad00a0cfa9fca26 Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Date: Wed, 25 Mar 2020 15:27:15 +0900
+Subject: [PATCH] media: vivid: add cache_hints module param
+
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ Documentation/media/v4l-drivers/vivid.rst | 8 ++++++++
+ drivers/media/platform/vivid/vivid-core.c | 8 ++++++++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/Documentation/media/v4l-drivers/vivid.rst b/Documentation/media/v4l-drivers/vivid.rst
+index 52e57b773f07..5e521a59b05a 100644
+--- a/Documentation/media/v4l-drivers/vivid.rst
++++ b/Documentation/media/v4l-drivers/vivid.rst
+@@ -293,6 +293,14 @@ all configurable using the following module options:
+ 		- 0: vmalloc
+ 		- 1: dma-contig
+ 
++- cache_hints:
++
++	user-space cache hints selection, default is 0. It specifies if the
++	queue supports user-space cache and memory consistency hints.
++
++		- 0: forbid hints
++		- 1: allow hints
++
+ Taken together, all these module options allow you to precisely customize
+ the driver behavior and test your application with all sorts of permutations.
+ It is also very suitable to emulate hardware that is not yet available, e.g.
+diff --git a/drivers/media/platform/vivid/vivid-core.c b/drivers/media/platform/vivid/vivid-core.c
+index c62c068b6b60..cea647888f97 100644
+--- a/drivers/media/platform/vivid/vivid-core.c
++++ b/drivers/media/platform/vivid/vivid-core.c
+@@ -169,6 +169,12 @@ MODULE_PARM_DESC(allocators, " memory allocator selection, default is 0.\n"
+ 			     "\t\t    0 == vmalloc\n"
+ 			     "\t\t    1 == dma-contig");
+ 
++static unsigned int cache_hints[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 0 };
++module_param_array(cache_hints, uint, NULL, 0444);
++MODULE_PARM_DESC(cache_hints, " user-space cache hints, default is 0.\n"
++			     "\t\t    0 == forbid\n"
++			     "\t\t    1 == allow");
++
+ static struct vivid_dev *vivid_devs[VIVID_MAX_DEVS];
+ 
+ const struct v4l2_rect vivid_min_rect = {
+@@ -819,6 +825,8 @@ static int vivid_create_queue(struct vivid_dev *dev,
+ 	q->lock = &dev->mutex;
+ 	q->dev = dev->v4l2_dev.dev;
+ 	q->supports_requests = true;
++	if (cache_hints[dev->inst] == 1)
++		q->allow_cache_hints = 1;
+ 
+ 	return vb2_queue_init(q);
+ }
+-- 
+2.26.0
+
