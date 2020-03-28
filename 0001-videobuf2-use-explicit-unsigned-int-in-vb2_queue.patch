@@ -1,12 +1,12 @@
-From 675bb20f45be78a5af69d696e02dfe5caeb2b08b Mon Sep 17 00:00:00 2001
+From e37a6d2197d9f57f89c0b61019b7fe0bf17e0dd5 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Sat, 7 Mar 2020 20:18:16 +0900
-Subject: [PATCH 01/12] videobuf2: improve vb2_queue styles
+Subject: [PATCH 01/12] videobuf2: use explicit unsigned int in vb2_queue
 
 Switch from 'unsigned' to 'unsigned int' so that checkpatch doesn't
 complain.
 
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
  include/media/videobuf2-core.h | 18 +++++++++---------
  1 file changed, 9 insertions(+), 9 deletions(-)
@@ -41,5 +41,5 @@ index f11b96514cf7..9e522bd2acc7 100644
  	struct mutex			*lock;
  	void				*owner;
 -- 
-2.25.1.696.g5e7596f4ac-goog
+2.26.0
 
