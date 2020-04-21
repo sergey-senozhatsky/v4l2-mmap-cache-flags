@@ -1,4 +1,4 @@
-From 2f5f863a715085e2c80efaed152aa8115cc615ee Mon Sep 17 00:00:00 2001
+From 4229c55a382667ee8ea5efb23eeaaec94671874e Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 05/14] videobuf2: add queue memory consistency parameter
@@ -228,5 +228,5 @@ index ccc5c498d3e3..9e68fe043a6c 100644
  
  /**
 -- 
-2.26.1
+2.26.1.301.g55bc3eb7cb9-goog
 

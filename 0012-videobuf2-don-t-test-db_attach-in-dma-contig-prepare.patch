@@ -1,4 +1,4 @@
-From 38366d21fd98cbd5b92e13237feebc50c65b65a2 Mon Sep 17 00:00:00 2001
+From 6ef1af4e6b0deac8e78f7cc4a371a860577945b1 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:36 +0900
 Subject: [PATCH 12/14] videobuf2: don't test db_attach in dma-contig prepare
@@ -46,7 +46,7 @@ index 6787e2cb905e..5a3e1c3b556f 100644
  
  	dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->orig_nents, buf->dma_dir);
 diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-index 0c4899d62edb..1fa7e0578f5f 100644
+index 595137e358e7..0a40e00f0d7e 100644
 --- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
 +++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
 @@ -204,10 +204,6 @@ static void vb2_dma_sg_prepare(void *buf_priv)
@@ -72,5 +72,5 @@ index 0c4899d62edb..1fa7e0578f5f 100644
  }
  
 -- 
-2.26.1
+2.26.1.301.g55bc3eb7cb9-goog
 

@@ -1,4 +1,4 @@
-From d80cbadb4e9dd19f7b4c0c3cd8ca3e68519409fe Mon Sep 17 00:00:00 2001
+From 0cdb01c1528d98932e44e6a2c42b5c9be9c46d7d Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Fri, 10 Apr 2020 19:35:01 +0900
 Subject: [PATCH 14/14] media: v4l2-ctrls: add more NULL pointer checks
@@ -268,5 +268,5 @@ index 7db9e719a583..22d7ea500f96 100644
  	rval = __v4l2_ctrl_s_ctrl_area(ctrl, area);
  	v4l2_ctrl_unlock(ctrl);
 -- 
-2.26.1
+2.26.1.301.g55bc3eb7cb9-goog
 

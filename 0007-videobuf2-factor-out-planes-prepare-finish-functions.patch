@@ -1,4 +1,4 @@
-From ad1e933a3305c90f8a8f8d8f84eb7f1658180112 Mon Sep 17 00:00:00 2001
+From 9953963824e6fb06efb3cdedb1f722999bf3fc03 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 07/14] videobuf2: factor out planes prepare/finish functions
@@ -109,5 +109,5 @@ index d16f47022552..0be31a11c913 100644
  		if (vb->prepared) {
  			call_void_vb_qop(vb, buf_finish, vb);
 -- 
-2.26.1
+2.26.1.301.g55bc3eb7cb9-goog
 

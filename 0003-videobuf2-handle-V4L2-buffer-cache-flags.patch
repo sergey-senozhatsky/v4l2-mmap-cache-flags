@@ -1,4 +1,4 @@
-From 5c55d74af1d3ceac3b596dc55eb88831146a8d66 Mon Sep 17 00:00:00 2001
+From 1865bbd45d962e7e781fb9e0109f7291f154258d Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
 Subject: [PATCH 03/14] videobuf2: handle V4L2 buffer cache flags
@@ -106,5 +106,5 @@ index 7f39d9fffc8c..ccc5c498d3e3 100644
   * vb2_plane_vaddr() - Return a kernel virtual address of a given plane.
   * @vb:		pointer to &struct vb2_buffer to which the plane in
 -- 
-2.26.1
+2.26.1.301.g55bc3eb7cb9-goog
 

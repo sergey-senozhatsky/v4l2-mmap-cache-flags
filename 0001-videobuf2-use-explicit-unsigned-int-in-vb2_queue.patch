@@ -1,4 +1,4 @@
-From 36239cfe79d2f0614a43f9c7527818b2c628bca2 Mon Sep 17 00:00:00 2001
+From 1d47cbfdc183b572867e6f99d039f0e70bfc620a Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Sat, 7 Mar 2020 20:18:16 +0900
 Subject: [PATCH 01/14] videobuf2: use explicit unsigned int in vb2_queue
@@ -41,5 +41,5 @@ index f11b96514cf7..9e522bd2acc7 100644
  	struct mutex			*lock;
  	void				*owner;
 -- 
-2.26.1
+2.26.1.301.g55bc3eb7cb9-goog
 

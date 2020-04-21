@@ -1,4 +1,4 @@
-From 679dea8c2a1283de7894022f758a4c1845707072 Mon Sep 17 00:00:00 2001
+From 86a0d48bcf847582b60f43b654e07304d6380619 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:36 +0900
 Subject: [PATCH 11/14] videobuf2: add begin/end cpu_access callbacks to dma-sg
@@ -16,7 +16,7 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  1 file changed, 30 insertions(+)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
-index 6db60e9d5183..0c4899d62edb 100644
+index 92072a08af25..595137e358e7 100644
 --- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
 +++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
 @@ -120,6 +120,12 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
@@ -32,7 +32,7 @@ index 6db60e9d5183..0c4899d62edb 100644
  	buf->pages = kvmalloc_array(buf->num_pages, sizeof(struct page *),
  				    GFP_KERNEL | __GFP_ZERO);
  	if (!buf->pages)
-@@ -470,6 +476,28 @@ static void vb2_dma_sg_dmabuf_ops_release(struct dma_buf *dbuf)
+@@ -469,6 +475,28 @@ static void vb2_dma_sg_dmabuf_ops_release(struct dma_buf *dbuf)
  	vb2_dma_sg_put(dbuf->priv);
  }
  
@@ -61,7 +61,7 @@ index 6db60e9d5183..0c4899d62edb 100644
  static void *vb2_dma_sg_dmabuf_ops_vmap(struct dma_buf *dbuf)
  {
  	struct vb2_dma_sg_buf *buf = dbuf->priv;
-@@ -488,6 +516,8 @@ static const struct dma_buf_ops vb2_dma_sg_dmabuf_ops = {
+@@ -487,6 +515,8 @@ static const struct dma_buf_ops vb2_dma_sg_dmabuf_ops = {
  	.detach = vb2_dma_sg_dmabuf_ops_detach,
  	.map_dma_buf = vb2_dma_sg_dmabuf_ops_map,
  	.unmap_dma_buf = vb2_dma_sg_dmabuf_ops_unmap,
@@ -71,5 +71,5 @@ index 6db60e9d5183..0c4899d62edb 100644
  	.mmap = vb2_dma_sg_dmabuf_ops_mmap,
  	.release = vb2_dma_sg_dmabuf_ops_release,
 -- 
-2.26.1
+2.26.1.301.g55bc3eb7cb9-goog
 

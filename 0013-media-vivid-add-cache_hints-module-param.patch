@@ -1,4 +1,4 @@
-From c6f1d2425c54bb0f0fce93b669d8837706f76518 Mon Sep 17 00:00:00 2001
+From 1e4c4b97a1b7ae31704a76b0423196bc08883d7c Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Wed, 25 Mar 2020 15:27:15 +0900
 Subject: [PATCH 13/14] media: vivid: add cache_hints module param
@@ -8,7 +8,7 @@ Add a module param to control per-queue user space cache hints support.
 Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 ---
  Documentation/admin-guide/media/vivid.rst     | 8 ++++++++
- drivers/media/test_drivers/vivid/vivid-core.c | 8 ++++++++
+ drivers/media/test-drivers/vivid/vivid-core.c | 8 ++++++++
  2 files changed, 16 insertions(+)
 
 diff --git a/Documentation/admin-guide/media/vivid.rst b/Documentation/admin-guide/media/vivid.rst
@@ -30,10 +30,10 @@ index 52e57b773f07..5e521a59b05a 100644
  Taken together, all these module options allow you to precisely customize
  the driver behavior and test your application with all sorts of permutations.
  It is also very suitable to emulate hardware that is not yet available, e.g.
-diff --git a/drivers/media/test_drivers/vivid/vivid-core.c b/drivers/media/test_drivers/vivid/vivid-core.c
+diff --git a/drivers/media/test-drivers/vivid/vivid-core.c b/drivers/media/test-drivers/vivid/vivid-core.c
 index 6c740e3e6999..55f2360ed155 100644
---- a/drivers/media/test_drivers/vivid/vivid-core.c
-+++ b/drivers/media/test_drivers/vivid/vivid-core.c
+--- a/drivers/media/test-drivers/vivid/vivid-core.c
++++ b/drivers/media/test-drivers/vivid/vivid-core.c
 @@ -169,6 +169,12 @@ MODULE_PARM_DESC(allocators, " memory allocator selection, default is 0.\n"
  			     "\t\t    0 == vmalloc\n"
  			     "\t\t    1 == dma-contig");
@@ -57,5 +57,5 @@ index 6c740e3e6999..55f2360ed155 100644
  	return vb2_queue_init(q);
  }
 -- 
-2.26.1
+2.26.1.301.g55bc3eb7cb9-goog
 
