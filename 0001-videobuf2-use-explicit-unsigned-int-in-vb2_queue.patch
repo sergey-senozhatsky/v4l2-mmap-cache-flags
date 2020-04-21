@@ -1,7 +1,7 @@
-From e37a6d2197d9f57f89c0b61019b7fe0bf17e0dd5 Mon Sep 17 00:00:00 2001
+From 36239cfe79d2f0614a43f9c7527818b2c628bca2 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Sat, 7 Mar 2020 20:18:16 +0900
-Subject: [PATCH 01/12] videobuf2: use explicit unsigned int in vb2_queue
+Subject: [PATCH 01/14] videobuf2: use explicit unsigned int in vb2_queue
 
 Switch from 'unsigned' to 'unsigned int' so that checkpatch doesn't
 complain.
@@ -41,5 +41,5 @@ index f11b96514cf7..9e522bd2acc7 100644
  	struct mutex			*lock;
  	void				*owner;
 -- 
-2.26.0
+2.26.1
 

@@ -1,7 +1,7 @@
-From f321089dbcfd34d2a8e020aa6665c140007eb879 Mon Sep 17 00:00:00 2001
+From 26e69cc78736164f231e22d00fdc55ebbfcf3cd0 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
-Subject: [PATCH 04/12] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+Subject: [PATCH 04/14] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 
 By setting or clearing V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 user-space should be able to set or clear queue's NON_CONSISTENT
@@ -16,16 +16,16 @@ queue supports user-space cache management hints.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- Documentation/media/uapi/v4l/buffer.rst       | 41 ++++++++++++++++++-
- .../media/uapi/v4l/vidioc-reqbufs.rst         |  9 ++++
+ .../userspace-api/media/v4l/buffer.rst        | 41 ++++++++++++++++++-
+ .../media/v4l/vidioc-reqbufs.rst              |  9 ++++
  .../media/common/videobuf2/videobuf2-v4l2.c   |  2 +
  include/uapi/linux/videodev2.h                |  3 ++
  4 files changed, 53 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/media/uapi/v4l/buffer.rst b/Documentation/media/uapi/v4l/buffer.rst
-index 3112300c2fa0..b6dcf9bedfff 100644
---- a/Documentation/media/uapi/v4l/buffer.rst
-+++ b/Documentation/media/uapi/v4l/buffer.rst
+diff --git a/Documentation/userspace-api/media/v4l/buffer.rst b/Documentation/userspace-api/media/v4l/buffer.rst
+index 951ae1ed485f..66023658270c 100644
+--- a/Documentation/userspace-api/media/v4l/buffer.rst
++++ b/Documentation/userspace-api/media/v4l/buffer.rst
 @@ -577,7 +577,10 @@ Buffer Flags
  	applications shall use this flag if the data captured in the
  	buffer is not going to be touched by the CPU, instead the buffer
@@ -88,10 +88,10 @@ index 3112300c2fa0..b6dcf9bedfff 100644
  
  .. c:type:: v4l2_memory
  
-diff --git a/Documentation/media/uapi/v4l/vidioc-reqbufs.rst b/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
-index d0c643db477a..c9cc7158dddb 100644
---- a/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
-+++ b/Documentation/media/uapi/v4l/vidioc-reqbufs.rst
+diff --git a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
+index 79884bb4893b..893570af617b 100644
+--- a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
++++ b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
 @@ -126,6 +126,7 @@ aborting or finishing any DMA in progress, an implicit
  .. _V4L2-BUF-CAP-SUPPORTS-REQUESTS:
  .. _V4L2-BUF-CAP-SUPPORTS-ORPHANED-BUFS:
@@ -150,5 +150,5 @@ index 9817b7e2c968..0d4deba8fe30 100644
  /**
   * struct v4l2_plane - plane info for multi-planar buffers
 -- 
-2.26.0
+2.26.1
 

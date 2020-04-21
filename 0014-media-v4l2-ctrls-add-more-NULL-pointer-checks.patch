@@ -1,0 +1,272 @@
+From d80cbadb4e9dd19f7b4c0c3cd8ca3e68519409fe Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Date: Fri, 10 Apr 2020 19:35:01 +0900
+Subject: [PATCH 14/14] media: v4l2-ctrls: add more NULL pointer checks
+
+A number of v4l2-ctrls functions gracefully handle NULL ctrl pointers,
+for instance, v4l2_g_ctrl(), v4l2_ctrl_activate(), __v4l2_ctrl_grab()
+to name a few. But not all of them. It is relatively easy to crash the
+kernel with the NULL pointer dereference:
+
+	# modprobe vivid node_types=0x60000
+	$ v4l2-compliance
+
+BUG: kernel NULL pointer dereference, address: 0000000000000020
+PF: supervisor read access in kernel mode
+PF: error_code(0x0000) - not-present page
+PGD 0 P4D 0
+Oops: 0000 [#1] SMP PTI
+RIP: 0010:v4l2_ctrl_s_ctrl.isra.0+0x4/0x30 [vivid]
+Call Trace:
+ vidioc_s_input.cold+0x1a8/0x38d [vivid]
+ __video_do_ioctl+0x372/0x3a0 [videodev]
+ ? v4l_enumstd+0x20/0x20 [videodev]
+ ? v4l_enumstd+0x20/0x20 [videodev]
+ video_usercopy+0x1cb/0x450 [videodev]
+ v4l2_ioctl+0x3f/0x50 [videodev]
+ ksys_ioctl+0x3f1/0x7e0
+ ? vfs_write+0x1c4/0x1f0
+ __x64_sys_ioctl+0x11/0x20
+ do_syscall_64+0x49/0x2c0
+ entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+vivid driver crashes the kernel in various places, for instance,
+
+	v4l2_ctrl_modify_range(dev->brightness, ...);
+or
+	v4l2_ctrl_s_ctrl(dev->brightness, ...);
+
+because ->brightness (and quite likely some more controls) is NULL.
+While we may fix the vivid driver, it would be safer to fix core
+API. This patch adds more NULL pointer checks to ctrl API.
+
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ drivers/media/v4l2-core/v4l2-ctrls.c | 22 ++++++++++++++++-
+ include/media/v4l2-ctrls.h           | 37 ++++++++++++++++++++++++++--
+ 2 files changed, 56 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/media/v4l2-core/v4l2-ctrls.c b/drivers/media/v4l2-core/v4l2-ctrls.c
+index 93d33d1db4e8..02a60f67c2ee 100644
+--- a/drivers/media/v4l2-core/v4l2-ctrls.c
++++ b/drivers/media/v4l2-core/v4l2-ctrls.c
+@@ -2869,6 +2869,9 @@ EXPORT_SYMBOL(v4l2_ctrl_add_handler);
+ 
+ bool v4l2_ctrl_radio_filter(const struct v4l2_ctrl *ctrl)
+ {
++	if (WARN_ON(!ctrl))
++		return false;
++
+ 	if (V4L2_CTRL_ID2WHICH(ctrl->id) == V4L2_CTRL_CLASS_FM_TX)
+ 		return true;
+ 	if (V4L2_CTRL_ID2WHICH(ctrl->id) == V4L2_CTRL_CLASS_FM_RX)
+@@ -3794,7 +3797,9 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl)
+ 	struct v4l2_ext_control c;
+ 
+ 	/* It's a driver bug if this happens. */
+-	WARN_ON(!ctrl->is_int);
++	if (WARN_ON(!ctrl || !ctrl->is_int))
++		return -EINVAL;
++
+ 	c.value = 0;
+ 	get_ctrl(ctrl, &c);
+ 	return c.value;
+@@ -4212,6 +4217,9 @@ EXPORT_SYMBOL(v4l2_s_ctrl);
+ 
+ int __v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
+ {
++	if (!ctrl)
++		return -EINVAL;
++
+ 	lockdep_assert_held(ctrl->handler->lock);
+ 
+ 	/* It's a driver bug if this happens. */
+@@ -4223,6 +4231,9 @@ EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl);
+ 
+ int __v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
+ {
++	if (!ctrl)
++		return -EINVAL;
++
+ 	lockdep_assert_held(ctrl->handler->lock);
+ 
+ 	/* It's a driver bug if this happens. */
+@@ -4234,6 +4245,9 @@ EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_int64);
+ 
+ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
+ {
++	if (!ctrl)
++		return -EINVAL;
++
+ 	lockdep_assert_held(ctrl->handler->lock);
+ 
+ 	/* It's a driver bug if this happens. */
+@@ -4246,6 +4260,9 @@ EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_string);
+ int __v4l2_ctrl_s_ctrl_area(struct v4l2_ctrl *ctrl,
+ 			    const struct v4l2_area *area)
+ {
++	if (!ctrl)
++		return -EINVAL;
++
+ 	lockdep_assert_held(ctrl->handler->lock);
+ 
+ 	/* It's a driver bug if this happens. */
+@@ -4447,6 +4464,9 @@ int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
+ 	bool range_changed = false;
+ 	int ret;
+ 
++	if (!ctrl)
++		return -EINVAL;
++
+ 	lockdep_assert_held(ctrl->handler->lock);
+ 
+ 	switch (ctrl->type) {
+diff --git a/include/media/v4l2-ctrls.h b/include/media/v4l2-ctrls.h
+index 7db9e719a583..22d7ea500f96 100644
+--- a/include/media/v4l2-ctrls.h
++++ b/include/media/v4l2-ctrls.h
+@@ -755,6 +755,8 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
+  * transmitter class controls.
+  *
+  * This function is to be used with v4l2_ctrl_add_handler().
++ *
++ * Returns false if ctrl == NULL.
+  */
+ bool v4l2_ctrl_radio_filter(const struct v4l2_ctrl *ctrl);
+ 
+@@ -884,7 +886,7 @@ static inline void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed)
+  * @step value is interpreted as a menu_skip_mask.
+  *
+  * An error is returned if one of the range arguments is invalid for this
+- * control type.
++ * control type. Returns -EINVAL if ctrl == NULL.
+  *
+  * The caller is responsible for acquiring the control handler mutex on behalf
+  * of __v4l2_ctrl_modify_range().
+@@ -906,7 +908,7 @@ int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
+  * @step value is interpreted as a menu_skip_mask.
+  *
+  * An error is returned if one of the range arguments is invalid for this
+- * control type.
++ * control type. Returns -EINVAL if ctrl == NULL.
+  *
+  * This function assumes that the control handler is not locked and will
+  * take the lock itself.
+@@ -916,6 +918,9 @@ static inline int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
+ {
+ 	int rval;
+ 
++	if (!ctrl)
++		return -EINVAL;
++
+ 	v4l2_ctrl_lock(ctrl);
+ 	rval = __v4l2_ctrl_modify_range(ctrl, min, max, step, def);
+ 	v4l2_ctrl_unlock(ctrl);
+@@ -982,6 +987,8 @@ const s64 *v4l2_ctrl_get_int_menu(u32 id, u32 *len);
+  * used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for integer type controls only.
++ *
++ * Returns -EINVAL if ctrl == NULL.
+  */
+ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
+ 
+@@ -996,6 +1003,8 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
+  * allowing it to be used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for integer type controls only.
++ *
++ * Returns -EINVAL is ctrl == NULL.
+  */
+ int __v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
+ 
+@@ -1010,11 +1019,16 @@ int __v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
+  * used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for integer type controls only.
++ *
++ * Return -EINVAL is ctrl == NULL.
+  */
+ static inline int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
+ {
+ 	int rval;
+ 
++	if (!ctrl)
++		return -EINVAL;
++
+ 	v4l2_ctrl_lock(ctrl);
+ 	rval = __v4l2_ctrl_s_ctrl(ctrl, val);
+ 	v4l2_ctrl_unlock(ctrl);
+@@ -1062,11 +1076,16 @@ int __v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val);
+  * used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for 64-bit integer type controls only.
++ *
++ * Returns -EINVAL if ctrl == NULL.
+  */
+ static inline int v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
+ {
+ 	int rval;
+ 
++	if (!ctrl)
++		return -EINVAL;
++
+ 	v4l2_ctrl_lock(ctrl);
+ 	rval = __v4l2_ctrl_s_ctrl_int64(ctrl, val);
+ 	v4l2_ctrl_unlock(ctrl);
+@@ -1085,6 +1104,8 @@ static inline int v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
+  * allowing it to be used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for string type controls only.
++ *
++ * Returns -EINVAL if ctrl == NULL.
+  */
+ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s);
+ 
+@@ -1100,11 +1121,16 @@ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s);
+  * used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for string type controls only.
++ *
++ * Returns -EINVAL if ctrl == NULL.
+  */
+ static inline int v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
+ {
+ 	int rval;
+ 
++	if (!ctrl)
++		return -EINVAL;
++
+ 	v4l2_ctrl_lock(ctrl);
+ 	rval = __v4l2_ctrl_s_ctrl_string(ctrl, s);
+ 	v4l2_ctrl_unlock(ctrl);
+@@ -1123,6 +1149,8 @@ static inline int v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
+  * allowing it to be used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for area type controls only.
++ *
++ * Returns -EINVAL if ctrl == NULL.
+  */
+ int __v4l2_ctrl_s_ctrl_area(struct v4l2_ctrl *ctrl,
+ 			    const struct v4l2_area *area);
+@@ -1139,12 +1167,17 @@ int __v4l2_ctrl_s_ctrl_area(struct v4l2_ctrl *ctrl,
+  * used from within the &v4l2_ctrl_ops functions.
+  *
+  * This function is for area type controls only.
++ *
++ * Returns -EINVAL if ctrl == NULL.
+  */
+ static inline int v4l2_ctrl_s_ctrl_area(struct v4l2_ctrl *ctrl,
+ 					const struct v4l2_area *area)
+ {
+ 	int rval;
+ 
++	if (!ctrl)
++		return -EINVAL;
++
+ 	v4l2_ctrl_lock(ctrl);
+ 	rval = __v4l2_ctrl_s_ctrl_area(ctrl, area);
+ 	v4l2_ctrl_unlock(ctrl);
+-- 
+2.26.1
+

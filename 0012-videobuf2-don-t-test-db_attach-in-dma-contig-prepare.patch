@@ -1,7 +1,7 @@
-From 33931a428568c51dc1d5e808a5e984dc11bc5f75 Mon Sep 17 00:00:00 2001
+From 38366d21fd98cbd5b92e13237feebc50c65b65a2 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:36 +0900
-Subject: [PATCH 12/12] videobuf2: don't test db_attach in dma-contig prepare
+Subject: [PATCH 12/14] videobuf2: don't test db_attach in dma-contig prepare
  and finish
 
 We moved cache management decision making to the upper layer and
@@ -72,5 +72,5 @@ index 0c4899d62edb..1fa7e0578f5f 100644
  }
  
 -- 
-2.26.0
+2.26.1
 
