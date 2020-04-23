@@ -1,4 +1,4 @@
-From 86a0d48bcf847582b60f43b654e07304d6380619 Mon Sep 17 00:00:00 2001
+From 75cdf01c603d7ce2727164d772cbf8225743e110 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:36 +0900
 Subject: [PATCH 11/14] videobuf2: add begin/end cpu_access callbacks to dma-sg
@@ -71,5 +71,5 @@ index 92072a08af25..595137e358e7 100644
  	.mmap = vb2_dma_sg_dmabuf_ops_mmap,
  	.release = vb2_dma_sg_dmabuf_ops_release,
 -- 
-2.26.1.301.g55bc3eb7cb9-goog
+2.26.2
 

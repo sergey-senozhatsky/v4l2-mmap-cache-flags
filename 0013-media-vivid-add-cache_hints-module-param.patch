@@ -1,4 +1,4 @@
-From 1e4c4b97a1b7ae31704a76b0423196bc08883d7c Mon Sep 17 00:00:00 2001
+From e7573f49bedc8f041bc78558aabab4ea431588fa Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Wed, 25 Mar 2020 15:27:15 +0900
 Subject: [PATCH 13/14] media: vivid: add cache_hints module param
@@ -57,5 +57,5 @@ index 6c740e3e6999..55f2360ed155 100644
  	return vb2_queue_init(q);
  }
 -- 
-2.26.1.301.g55bc3eb7cb9-goog
+2.26.2
 

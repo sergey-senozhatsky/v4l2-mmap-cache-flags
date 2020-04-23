@@ -106,5 +106,5 @@ index 7f39d9fffc8c..ccc5c498d3e3 100644
   * vb2_plane_vaddr() - Return a kernel virtual address of a given plane.
   * @vb:		pointer to &struct vb2_buffer to which the plane in
 -- 
-2.26.1.301.g55bc3eb7cb9-goog
+2.26.2
 

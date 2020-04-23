@@ -1,4 +1,4 @@
-From 04b85aa89e1d6bcd7ee317070edb70ff742d5f9d Mon Sep 17 00:00:00 2001
+From debce9186164d7d43b5bac135d47cff205af834f Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Wed, 25 Mar 2020 13:24:19 +0900
 Subject: [PATCH 06/14] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -29,13 +29,13 @@ allocation during CREATE_BUFS and REQBUFS ioctl calls.
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
  .../media/v4l/vidioc-create-bufs.rst          |  7 ++++-
- .../media/v4l/vidioc-reqbufs.rst              | 11 ++++++--
- .../media/common/videobuf2/videobuf2-core.c   |  6 +++++
- .../media/common/videobuf2/videobuf2-v4l2.c   | 27 ++++++++++++++++---
- drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 +++++--
+ .../media/v4l/vidioc-reqbufs.rst              | 11 +++++--
+ .../media/common/videobuf2/videobuf2-core.c   |  6 ++++
+ .../media/common/videobuf2/videobuf2-v4l2.c   | 29 +++++++++++++++----
+ drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 ++++--
  drivers/media/v4l2-core/v4l2-ioctl.c          |  5 +---
  include/uapi/linux/videodev2.h                | 10 +++++--
- 7 files changed, 60 insertions(+), 15 deletions(-)
+ 7 files changed, 61 insertions(+), 16 deletions(-)
 
 diff --git a/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst b/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst
 index bd580232be10..4ece2551b355 100644
@@ -104,14 +104,23 @@ index f1a65925bc17..d16f47022552 100644
  		dprintk(1, "maximum number of buffers already allocated\n");
  		return -ENOBUFS;
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 541930801ff6..c18ace4d2140 100644
+index 541930801ff6..7083f5a1565f 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
+@@ -710,7 +710,7 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+ 		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
+ 	if (q->subsystem_flags & VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF)
+ 		*caps |= V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF;
+-	if (q->allow_cache_hints && q->memory == VB2_MEMORY_MMAP)
++	if (q->allow_cache_hints && q->io_modes & VB2_MMAP)
+ 		*caps |= V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS;
+ #ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
+ 	if (q->supports_requests)
 @@ -718,12 +718,22 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
  #endif
  }
  
-+static void adjust_consistentcy_flag(struct vb2_queue *q, unsigned int *flags)
++static void fixup_consistentcy_cap(struct vb2_queue *q, unsigned int *flags)
 +{
 +	if (!vb2_queue_allows_cache_hints(q))
 +		*flags &= ~V4L2_FLAG_MEMORY_NON_CONSISTENT;
@@ -126,7 +135,7 @@ index 541930801ff6..c18ace4d2140 100644
 +	if (ret)
 +		return ret;
 +	ret = vb2_core_reqbufs(q, req->memory, req->flags, &req->count);
-+	adjust_consistentcy_flag(q, &req->flags);
++	fixup_consistentcy_cap(q, &req->flags);
 +	return ret;
  }
  EXPORT_SYMBOL_GPL(vb2_reqbufs);
@@ -144,7 +153,7 @@ index 541930801ff6..c18ace4d2140 100644
 +	ret = vb2_core_create_bufs(q, create->memory,
 +				   create->flags, &create->count,
 +				   requested_planes, requested_sizes);
-+	adjust_consistentcy_flag(q, &create->flags);
++	fixup_consistentcy_cap(q, &create->flags);
 +	return ret;
  }
  EXPORT_SYMBOL_GPL(vb2_create_bufs);
@@ -156,7 +165,7 @@ index 541930801ff6..c18ace4d2140 100644
 -	res = vb2_core_reqbufs(vdev->queue, p->memory, 0, &p->count);
 +
 +	res = vb2_core_reqbufs(vdev->queue, p->memory, p->flags, &p->count);
-+	adjust_consistentcy_flag(vdev->queue, &p->flags);
++	fixup_consistentcy_cap(vdev->queue, &p->flags);
  	/* If count == 0, then the owner has released all buffers and he
  	   is no longer owner of the queue. Otherwise we have a new owner. */
  	if (res == 0)
@@ -260,5 +269,5 @@ index 0d4deba8fe30..f0a4694dd7c6 100644
  
  /*
 -- 
-2.26.1.301.g55bc3eb7cb9-goog
+2.26.2
 
