@@ -1,7 +1,7 @@
-From da1cc79c26fcbd472e69dbdeb6413bf141c2fbd0 Mon Sep 17 00:00:00 2001
+From b21cefdef1ad60d16bf43a299bdf3246e5799a5d Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 13/14] media: vivid: add cache_hints module param
+Subject: [PATCH 13/13] media: vivid: add cache_hints module param
 
 Add a cache_hints module param to control per-queue user space cache
 hints support.

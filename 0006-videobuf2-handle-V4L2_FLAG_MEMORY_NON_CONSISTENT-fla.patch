@@ -1,7 +1,7 @@
-From 8c54751e16a01e02bf1016aafd61f23d29d13c6a Mon Sep 17 00:00:00 2001
+From 1780ac6efc9e54d15354943b1ac92f171343ab5f Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 06/14] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+Subject: [PATCH 06/13] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 
 This patch lets user-space to request a non-consistent memory
 allocation during CREATE_BUFS and REQBUFS ioctl calls.
@@ -104,7 +104,7 @@ index f1a65925bc17..d16f47022552 100644
  		dprintk(1, "maximum number of buffers already allocated\n");
  		return -ENOBUFS;
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index fdfa2cd2c9b6..2957fb9abc95 100644
+index 04ea332567b1..aeb29c33984e 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
 @@ -718,12 +718,36 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
@@ -218,7 +218,7 @@ index a99e82ec9ab6..aa162ed6d01c 100644
  		return -EFAULT;
  	return __put_v4l2_format32(&p64->format, &p32->format);
 diff --git a/drivers/media/v4l2-core/v4l2-ioctl.c b/drivers/media/v4l2-core/v4l2-ioctl.c
-index b2ef8e60ea7d..fb881fed5ce6 100644
+index 833e79a2cb98..4c2dadbeefdc 100644
 --- a/drivers/media/v4l2-core/v4l2-ioctl.c
 +++ b/drivers/media/v4l2-core/v4l2-ioctl.c
 @@ -1978,9 +1978,6 @@ static int v4l_reqbufs(const struct v4l2_ioctl_ops *ops,

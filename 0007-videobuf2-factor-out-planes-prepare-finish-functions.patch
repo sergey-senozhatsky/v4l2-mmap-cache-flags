@@ -1,7 +1,7 @@
-From be8b91e4a08d7de2978d0cb639d127a7fb9c6e67 Mon Sep 17 00:00:00 2001
+From 52c6c4ac087e11ee8b095e3a87b457c63417da3f Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 07/14] videobuf2: factor out planes prepare/finish functions
+Subject: [PATCH 07/13] videobuf2: factor out planes prepare/finish functions
 
 Factor out the code, no functional changes.
 

@@ -1,7 +1,7 @@
-From b43dfbfddae1bf89b8c61fc3e468ae81f392dfb4 Mon Sep 17 00:00:00 2001
+From f6c91fc399b9dd06870673003b33427bc910a628 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 10/14] videobuf2: add begin/end cpu_access callbacks to
+Subject: [PATCH 10/13] videobuf2: add begin/end cpu_access callbacks to
  dma-contig
 
 Provide begin_cpu_access() and end_cpu_access() callbacks for

@@ -1,7 +1,7 @@
-From 2ebec09b5747d55592c41a282bf8a5f0191d9d7a Mon Sep 17 00:00:00 2001
+From 23df792a907da3bdd4d6e76892b73fc47e1a3e25 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 05/14] videobuf2: add queue memory consistency parameter
+Subject: [PATCH 05/13] videobuf2: add queue memory consistency parameter
 
 Preparations for future V4L2_FLAG_MEMORY_NON_CONSISTENT support.
 
@@ -146,7 +146,7 @@ index 44d65f5be845..f1a65925bc17 100644
  		dprintk(3, "file io emulator closed\n");
  	}
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index fc749b08ae09..fdfa2cd2c9b6 100644
+index 26716055d914..04ea332567b1 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
 @@ -723,7 +723,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
