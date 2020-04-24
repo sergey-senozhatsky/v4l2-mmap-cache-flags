@@ -1,4 +1,4 @@
-From b21cefdef1ad60d16bf43a299bdf3246e5799a5d Mon Sep 17 00:00:00 2001
+From fccac0c48c050e189adac61cddac00cae40f2b0d Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 13/13] media: vivid: add cache_hints module param
@@ -9,7 +9,7 @@ hints support.
 Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 ---
  Documentation/admin-guide/media/vivid.rst          | 9 +++++++++
- drivers/media/test-drivers/vivid/vivid-core.c      | 7 +++++++
+ drivers/media/test-drivers/vivid/vivid-core.c      | 9 +++++++++
  drivers/media/test-drivers/vivid/vivid-core.h      | 1 +
  drivers/media/test-drivers/vivid/vivid-meta-cap.c  | 5 +++++
  drivers/media/test-drivers/vivid/vivid-meta-out.c  | 5 +++++
@@ -19,7 +19,7 @@ Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
  drivers/media/test-drivers/vivid/vivid-vbi-out.c   | 5 +++++
  drivers/media/test-drivers/vivid/vivid-vid-cap.c   | 5 +++++
  drivers/media/test-drivers/vivid/vivid-vid-out.c   | 5 +++++
- 11 files changed, 59 insertions(+)
+ 11 files changed, 61 insertions(+)
 
 diff --git a/Documentation/admin-guide/media/vivid.rst b/Documentation/admin-guide/media/vivid.rst
 index 52e57b773f07..a41fa7129dec 100644
@@ -42,14 +42,16 @@ index 52e57b773f07..a41fa7129dec 100644
  the driver behavior and test your application with all sorts of permutations.
  It is also very suitable to emulate hardware that is not yet available, e.g.
 diff --git a/drivers/media/test-drivers/vivid/vivid-core.c b/drivers/media/test-drivers/vivid/vivid-core.c
-index 6c740e3e6999..e76dcb79734f 100644
+index 6c740e3e6999..b1bea405f382 100644
 --- a/drivers/media/test-drivers/vivid/vivid-core.c
 +++ b/drivers/media/test-drivers/vivid/vivid-core.c
-@@ -169,6 +169,12 @@ MODULE_PARM_DESC(allocators, " memory allocator selection, default is 0.\n"
+@@ -169,6 +169,14 @@ MODULE_PARM_DESC(allocators, " memory allocator selection, default is 0.\n"
  			     "\t\t    0 == vmalloc\n"
  			     "\t\t    1 == dma-contig");
  
-+static unsigned int cache_hints[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 0 };
++static unsigned int cache_hints[VIVID_MAX_DEVS] = {
++	[0 ... (VIVID_MAX_DEVS - 1)] = 0
++};
 +module_param_array(cache_hints, uint, NULL, 0444);
 +MODULE_PARM_DESC(cache_hints, " user-space cache hints, default is 0.\n"
 +			     "\t\t    0 == forbid\n"
@@ -58,7 +60,7 @@ index 6c740e3e6999..e76dcb79734f 100644
  static struct vivid_dev *vivid_devs[VIVID_MAX_DEVS];
  
  const struct v4l2_rect vivid_min_rect = {
-@@ -819,6 +825,7 @@ static int vivid_create_queue(struct vivid_dev *dev,
+@@ -819,6 +827,7 @@ static int vivid_create_queue(struct vivid_dev *dev,
  	q->lock = &dev->mutex;
  	q->dev = dev->v4l2_dev.dev;
  	q->supports_requests = true;
