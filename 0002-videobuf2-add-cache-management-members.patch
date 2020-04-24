@@ -1,6 +1,6 @@
-From a010e70d6135abf77bf97e13ed1c15723fd6ba4e Mon Sep 17 00:00:00 2001
+From c249c9949aa1b2447c1f691032b37deba0bed88d Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Tue, 25 Feb 2020 15:01:35 +0900
+Date: Fri, 24 Apr 2020 13:43:06 +0900
 Subject: [PATCH 02/14] videobuf2: add cache management members
 
 Extend vb2_buffer and vb2_queue structs with cache management

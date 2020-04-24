@@ -1,6 +1,6 @@
-From debce9186164d7d43b5bac135d47cff205af834f Mon Sep 17 00:00:00 2001
+From 8c54751e16a01e02bf1016aafd61f23d29d13c6a Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Wed, 25 Mar 2020 13:24:19 +0900
+Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 06/14] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 
 This patch lets user-space to request a non-consistent memory
@@ -28,14 +28,14 @@ allocation during CREATE_BUFS and REQBUFS ioctl calls.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- .../media/v4l/vidioc-create-bufs.rst          |  7 ++++-
- .../media/v4l/vidioc-reqbufs.rst              | 11 +++++--
- .../media/common/videobuf2/videobuf2-core.c   |  6 ++++
- .../media/common/videobuf2/videobuf2-v4l2.c   | 29 +++++++++++++++----
- drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 ++++--
- drivers/media/v4l2-core/v4l2-ioctl.c          |  5 +---
- include/uapi/linux/videodev2.h                | 10 +++++--
- 7 files changed, 61 insertions(+), 16 deletions(-)
+ .../media/v4l/vidioc-create-bufs.rst          |  7 ++-
+ .../media/v4l/vidioc-reqbufs.rst              | 11 ++++-
+ .../media/common/videobuf2/videobuf2-core.c   |  6 +++
+ .../media/common/videobuf2/videobuf2-v4l2.c   | 43 +++++++++++++++++--
+ drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 +++-
+ drivers/media/v4l2-core/v4l2-ioctl.c          |  5 +--
+ include/uapi/linux/videodev2.h                | 10 ++++-
+ 7 files changed, 76 insertions(+), 15 deletions(-)
 
 diff --git a/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst b/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst
 index bd580232be10..4ece2551b355 100644
@@ -104,26 +104,30 @@ index f1a65925bc17..d16f47022552 100644
  		dprintk(1, "maximum number of buffers already allocated\n");
  		return -ENOBUFS;
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 541930801ff6..7083f5a1565f 100644
+index fdfa2cd2c9b6..2957fb9abc95 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-@@ -710,7 +710,7 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
- 		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
- 	if (q->subsystem_flags & VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF)
- 		*caps |= V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF;
--	if (q->allow_cache_hints && q->memory == VB2_MEMORY_MMAP)
-+	if (q->allow_cache_hints && q->io_modes & VB2_MMAP)
- 		*caps |= V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS;
- #ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
- 	if (q->supports_requests)
-@@ -718,12 +718,22 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+@@ -718,12 +718,36 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
  #endif
  }
  
-+static void fixup_consistentcy_cap(struct vb2_queue *q, unsigned int *flags)
++/*
++ * vb2_core_reqbufs()/vb2_core_create_bufs() can re-initialize the queue,
++ * change its memory, type and invoke driver's ->queue_setup(), so we need
++ * to adjust consistency flag and caps accordingly.
++ */
++static void fixup_consistency_attr(struct vb2_queue *q, unsigned int *flags)
 +{
 +	if (!vb2_queue_allows_cache_hints(q))
 +		*flags &= ~V4L2_FLAG_MEMORY_NON_CONSISTENT;
++}
++
++static void fixup_cache_hints_cap(struct vb2_queue *q, unsigned int *caps)
++{
++	if (!vb2_queue_allows_cache_hints(q))
++		*caps &= ~V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS;
++	else
++		*caps |= V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS;
 +}
 +
  int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
@@ -135,12 +139,13 @@ index 541930801ff6..7083f5a1565f 100644
 +	if (ret)
 +		return ret;
 +	ret = vb2_core_reqbufs(q, req->memory, req->flags, &req->count);
-+	fixup_consistentcy_cap(q, &req->flags);
++	fixup_consistency_attr(q, &req->flags);
++	fixup_cache_hints_cap(q, &req->capabilities);
 +	return ret;
  }
  EXPORT_SYMBOL_GPL(vb2_reqbufs);
  
-@@ -797,8 +807,15 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+@@ -797,8 +821,16 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
  	for (i = 0; i < requested_planes; i++)
  		if (requested_sizes[i] == 0)
  			return -EINVAL;
@@ -153,19 +158,21 @@ index 541930801ff6..7083f5a1565f 100644
 +	ret = vb2_core_create_bufs(q, create->memory,
 +				   create->flags, &create->count,
 +				   requested_planes, requested_sizes);
-+	fixup_consistentcy_cap(q, &create->flags);
++	fixup_consistency_attr(q, &create->flags);
++	fixup_cache_hints_cap(q, &create->capabilities);
 +	return ret;
  }
  EXPORT_SYMBOL_GPL(vb2_create_bufs);
  
-@@ -973,7 +990,9 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
+@@ -973,7 +1005,10 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
  		return res;
  	if (vb2_queue_is_busy(vdev, file))
  		return -EBUSY;
 -	res = vb2_core_reqbufs(vdev->queue, p->memory, 0, &p->count);
 +
 +	res = vb2_core_reqbufs(vdev->queue, p->memory, p->flags, &p->count);
-+	fixup_consistentcy_cap(vdev->queue, &p->flags);
++	fixup_consistency_attr(vdev->queue, &p->flags);
++	fixup_cache_hints_cap(vdev->queue, &p->capabilities);
  	/* If count == 0, then the owner has released all buffers and he
  	   is no longer owner of the queue. Otherwise we have a new owner. */
  	if (res == 0)

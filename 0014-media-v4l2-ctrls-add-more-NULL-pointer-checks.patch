@@ -1,6 +1,6 @@
-From a36fff1df05e8b836675c28fdc6d5d563d75d26d Mon Sep 17 00:00:00 2001
+From 3120ad3ea41252e3cfeffc4c47dd8cda1d46648f Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Date: Fri, 10 Apr 2020 19:35:01 +0900
+Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 14/14] media: v4l2-ctrls: add more NULL pointer checks
 
 A number of v4l2-ctrls functions gracefully handle NULL ctrl pointers,

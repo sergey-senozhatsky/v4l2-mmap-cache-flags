@@ -1,6 +1,6 @@
-From ffe5d1c8de4e1b24fcb3bcf15acb533e82a3407c Mon Sep 17 00:00:00 2001
+From 325fb5bd5d0e37019443dca163497d4fff1a307c Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Tue, 25 Feb 2020 15:01:35 +0900
+Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 04/14] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 
 By setting or clearing V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -18,9 +18,9 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
  .../userspace-api/media/v4l/buffer.rst        | 41 ++++++++++++++++++-
  .../media/v4l/vidioc-reqbufs.rst              |  9 ++++
- .../media/common/videobuf2/videobuf2-v4l2.c   |  2 +
+ .../media/common/videobuf2/videobuf2-v4l2.c   |  4 +-
  include/uapi/linux/videodev2.h                |  3 ++
- 4 files changed, 53 insertions(+), 2 deletions(-)
+ 4 files changed, 54 insertions(+), 3 deletions(-)
 
 diff --git a/Documentation/userspace-api/media/v4l/buffer.rst b/Documentation/userspace-api/media/v4l/buffer.rst
 index 951ae1ed485f..66023658270c 100644
@@ -116,18 +116,21 @@ index 79884bb4893b..893570af617b 100644
  Return Value
  ============
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index f13851212cc8..0864060f6ac0 100644
+index f13851212cc8..fc749b08ae09 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-@@ -710,6 +710,8 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
- 		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
- 	if (q->subsystem_flags & VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF)
- 		*caps |= V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF;
-+	if (q->allow_cache_hints && q->memory == VB2_MEMORY_MMAP)
+@@ -702,8 +702,10 @@ EXPORT_SYMBOL(vb2_querybuf);
+ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+ {
+ 	*caps = V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS;
+-	if (q->io_modes & VB2_MMAP)
++	if (q->io_modes & VB2_MMAP) {
+ 		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP;
 +		*caps |= V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS;
- #ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
- 	if (q->supports_requests)
- 		*caps |= V4L2_BUF_CAP_SUPPORTS_REQUESTS;
++	}
+ 	if (q->io_modes & VB2_USERPTR)
+ 		*caps |= V4L2_BUF_CAP_SUPPORTS_USERPTR;
+ 	if (q->io_modes & VB2_DMABUF)
 diff --git a/include/uapi/linux/videodev2.h b/include/uapi/linux/videodev2.h
 index 9817b7e2c968..0d4deba8fe30 100644
 --- a/include/uapi/linux/videodev2.h

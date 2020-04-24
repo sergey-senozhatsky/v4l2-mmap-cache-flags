@@ -1,28 +1,39 @@
-From e7573f49bedc8f041bc78558aabab4ea431588fa Mon Sep 17 00:00:00 2001
+From da1cc79c26fcbd472e69dbdeb6413bf141c2fbd0 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Date: Wed, 25 Mar 2020 15:27:15 +0900
+Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 13/14] media: vivid: add cache_hints module param
 
-Add a module param to control per-queue user space cache hints support.
+Add a cache_hints module param to control per-queue user space cache
+hints support.
 
 Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 ---
- Documentation/admin-guide/media/vivid.rst     | 8 ++++++++
- drivers/media/test-drivers/vivid/vivid-core.c | 8 ++++++++
- 2 files changed, 16 insertions(+)
+ Documentation/admin-guide/media/vivid.rst          | 9 +++++++++
+ drivers/media/test-drivers/vivid/vivid-core.c      | 7 +++++++
+ drivers/media/test-drivers/vivid/vivid-core.h      | 1 +
+ drivers/media/test-drivers/vivid/vivid-meta-cap.c  | 5 +++++
+ drivers/media/test-drivers/vivid/vivid-meta-out.c  | 5 +++++
+ drivers/media/test-drivers/vivid/vivid-sdr-cap.c   | 7 +++++++
+ drivers/media/test-drivers/vivid/vivid-touch-cap.c | 5 +++++
+ drivers/media/test-drivers/vivid/vivid-vbi-cap.c   | 5 +++++
+ drivers/media/test-drivers/vivid/vivid-vbi-out.c   | 5 +++++
+ drivers/media/test-drivers/vivid/vivid-vid-cap.c   | 5 +++++
+ drivers/media/test-drivers/vivid/vivid-vid-out.c   | 5 +++++
+ 11 files changed, 59 insertions(+)
 
 diff --git a/Documentation/admin-guide/media/vivid.rst b/Documentation/admin-guide/media/vivid.rst
-index 52e57b773f07..5e521a59b05a 100644
+index 52e57b773f07..a41fa7129dec 100644
 --- a/Documentation/admin-guide/media/vivid.rst
 +++ b/Documentation/admin-guide/media/vivid.rst
-@@ -293,6 +293,14 @@ all configurable using the following module options:
+@@ -293,6 +293,15 @@ all configurable using the following module options:
  		- 0: vmalloc
  		- 1: dma-contig
  
 +- cache_hints:
 +
 +	user-space cache hints selection, default is 0. It specifies if the
-+	queue supports user-space cache and memory consistency hints.
++	device supports user-space cache (for MMAP queues only) and memory
++	consistency hints.
 +
 +		- 0: forbid hints
 +		- 1: allow hints
@@ -31,7 +42,7 @@ index 52e57b773f07..5e521a59b05a 100644
  the driver behavior and test your application with all sorts of permutations.
  It is also very suitable to emulate hardware that is not yet available, e.g.
 diff --git a/drivers/media/test-drivers/vivid/vivid-core.c b/drivers/media/test-drivers/vivid/vivid-core.c
-index 6c740e3e6999..55f2360ed155 100644
+index 6c740e3e6999..e76dcb79734f 100644
 --- a/drivers/media/test-drivers/vivid/vivid-core.c
 +++ b/drivers/media/test-drivers/vivid/vivid-core.c
 @@ -169,6 +169,12 @@ MODULE_PARM_DESC(allocators, " memory allocator selection, default is 0.\n"
@@ -47,15 +58,159 @@ index 6c740e3e6999..55f2360ed155 100644
  static struct vivid_dev *vivid_devs[VIVID_MAX_DEVS];
  
  const struct v4l2_rect vivid_min_rect = {
-@@ -819,6 +825,8 @@ static int vivid_create_queue(struct vivid_dev *dev,
+@@ -819,6 +825,7 @@ static int vivid_create_queue(struct vivid_dev *dev,
  	q->lock = &dev->mutex;
  	q->dev = dev->v4l2_dev.dev;
  	q->supports_requests = true;
-+	if (cache_hints[dev->inst] == 1)
-+		q->allow_cache_hints = 1;
++	dev->allow_cache_hints = (cache_hints[dev->inst] == 1);
  
  	return vb2_queue_init(q);
  }
+diff --git a/drivers/media/test-drivers/vivid/vivid-core.h b/drivers/media/test-drivers/vivid/vivid-core.h
+index 99e69b8f770f..75ab627ba91f 100644
+--- a/drivers/media/test-drivers/vivid/vivid-core.h
++++ b/drivers/media/test-drivers/vivid/vivid-core.h
+@@ -572,6 +572,7 @@ struct vivid_dev {
+ 
+ 	bool				meta_pts;
+ 	bool				meta_scr;
++	bool				allow_cache_hints;
+ };
+ 
+ static inline bool vivid_is_webcam(const struct vivid_dev *dev)
+diff --git a/drivers/media/test-drivers/vivid/vivid-meta-cap.c b/drivers/media/test-drivers/vivid/vivid-meta-cap.c
+index 780f96860a6d..0ba8fff47106 100644
+--- a/drivers/media/test-drivers/vivid/vivid-meta-cap.c
++++ b/drivers/media/test-drivers/vivid/vivid-meta-cap.c
+@@ -34,6 +34,11 @@ static int meta_cap_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
+ 		*nbuffers = 2 - vq->num_buffers;
+ 
+ 	*nplanes = 1;
++
++	if (dev->allow_cache_hints && vq->memory == VB2_MEMORY_MMAP)
++		vq->allow_cache_hints = 1;
++	else
++		vq->allow_cache_hints = 0;
+ 	return 0;
+ }
+ 
+diff --git a/drivers/media/test-drivers/vivid/vivid-meta-out.c b/drivers/media/test-drivers/vivid/vivid-meta-out.c
+index ff8a039aba72..6be56f1230d4 100644
+--- a/drivers/media/test-drivers/vivid/vivid-meta-out.c
++++ b/drivers/media/test-drivers/vivid/vivid-meta-out.c
+@@ -34,6 +34,11 @@ static int meta_out_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
+ 		*nbuffers = 2 - vq->num_buffers;
+ 
+ 	*nplanes = 1;
++
++	if (dev->allow_cache_hints && vq->memory == VB2_MEMORY_MMAP)
++		vq->allow_cache_hints = 1;
++	else
++		vq->allow_cache_hints = 0;
+ 	return 0;
+ }
+ 
+diff --git a/drivers/media/test-drivers/vivid/vivid-sdr-cap.c b/drivers/media/test-drivers/vivid/vivid-sdr-cap.c
+index 2b7522e16efc..f87cd7d0fada 100644
+--- a/drivers/media/test-drivers/vivid/vivid-sdr-cap.c
++++ b/drivers/media/test-drivers/vivid/vivid-sdr-cap.c
+@@ -211,9 +211,16 @@ static int sdr_cap_queue_setup(struct vb2_queue *vq,
+ 		       unsigned *nbuffers, unsigned *nplanes,
+ 		       unsigned sizes[], struct device *alloc_devs[])
+ {
++	struct vivid_dev *dev = vb2_get_drv_priv(vq);
++
+ 	/* 2 = max 16-bit sample returned */
+ 	sizes[0] = SDR_CAP_SAMPLES_PER_BUF * 2;
+ 	*nplanes = 1;
++
++	if (dev->allow_cache_hints && vq->memory == VB2_MEMORY_MMAP)
++		vq->allow_cache_hints = 1;
++	else
++		vq->allow_cache_hints = 0;
+ 	return 0;
+ }
+ 
+diff --git a/drivers/media/test-drivers/vivid/vivid-touch-cap.c b/drivers/media/test-drivers/vivid/vivid-touch-cap.c
+index ebb00b128030..af43a5f69ea0 100644
+--- a/drivers/media/test-drivers/vivid/vivid-touch-cap.c
++++ b/drivers/media/test-drivers/vivid/vivid-touch-cap.c
+@@ -27,6 +27,11 @@ static int touch_cap_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
+ 		*nbuffers = 2 - vq->num_buffers;
+ 
+ 	*nplanes = 1;
++
++	if (dev->allow_cache_hints && vq->memory == VB2_MEMORY_MMAP)
++		vq->allow_cache_hints = 1;
++	else
++		vq->allow_cache_hints = 0;
+ 	return 0;
+ }
+ 
+diff --git a/drivers/media/test-drivers/vivid/vivid-vbi-cap.c b/drivers/media/test-drivers/vivid/vivid-vbi-cap.c
+index 1a9348eea781..126754c0bee4 100644
+--- a/drivers/media/test-drivers/vivid/vivid-vbi-cap.c
++++ b/drivers/media/test-drivers/vivid/vivid-vbi-cap.c
+@@ -138,6 +138,11 @@ static int vbi_cap_queue_setup(struct vb2_queue *vq,
+ 		*nbuffers = 2 - vq->num_buffers;
+ 
+ 	*nplanes = 1;
++
++	if (dev->allow_cache_hints && vq->memory == VB2_MEMORY_MMAP)
++		vq->allow_cache_hints = 1;
++	else
++		vq->allow_cache_hints = 0;
+ 	return 0;
+ }
+ 
+diff --git a/drivers/media/test-drivers/vivid/vivid-vbi-out.c b/drivers/media/test-drivers/vivid/vivid-vbi-out.c
+index cd56476902a2..d35b458c01d2 100644
+--- a/drivers/media/test-drivers/vivid/vivid-vbi-out.c
++++ b/drivers/media/test-drivers/vivid/vivid-vbi-out.c
+@@ -34,6 +34,11 @@ static int vbi_out_queue_setup(struct vb2_queue *vq,
+ 		*nbuffers = 2 - vq->num_buffers;
+ 
+ 	*nplanes = 1;
++
++	if (dev->allow_cache_hints && vq->memory == VB2_MEMORY_MMAP)
++		vq->allow_cache_hints = 1;
++	else
++		vq->allow_cache_hints = 0;
+ 	return 0;
+ }
+ 
+diff --git a/drivers/media/test-drivers/vivid/vivid-vid-cap.c b/drivers/media/test-drivers/vivid/vivid-vid-cap.c
+index e94beef008c8..d0dfd3632ba9 100644
+--- a/drivers/media/test-drivers/vivid/vivid-vid-cap.c
++++ b/drivers/media/test-drivers/vivid/vivid-vid-cap.c
+@@ -129,6 +129,11 @@ static int vid_cap_queue_setup(struct vb2_queue *vq,
+ 
+ 	*nplanes = buffers;
+ 
++	if (dev->allow_cache_hints && vq->memory == VB2_MEMORY_MMAP)
++		vq->allow_cache_hints = 1;
++	else
++		vq->allow_cache_hints = 0;
++
+ 	dprintk(dev, 1, "%s: count=%d\n", __func__, *nbuffers);
+ 	for (p = 0; p < buffers; p++)
+ 		dprintk(dev, 1, "%s: size[%u]=%u\n", __func__, p, sizes[p]);
+diff --git a/drivers/media/test-drivers/vivid/vivid-vid-out.c b/drivers/media/test-drivers/vivid/vivid-vid-out.c
+index ee3446e3217c..4af8aaa13ffa 100644
+--- a/drivers/media/test-drivers/vivid/vivid-vid-out.c
++++ b/drivers/media/test-drivers/vivid/vivid-vid-out.c
+@@ -78,6 +78,11 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
+ 
+ 	*nplanes = planes;
+ 
++	if (dev->allow_cache_hints && vq->memory == VB2_MEMORY_MMAP)
++		vq->allow_cache_hints = 1;
++	else
++		vq->allow_cache_hints = 0;
++
+ 	dprintk(dev, 1, "%s: count=%d\n", __func__, *nbuffers);
+ 	for (p = 0; p < planes; p++)
+ 		dprintk(dev, 1, "%s: size[%u]=%u\n", __func__, p, sizes[p]);
 -- 
 2.26.2
 

@@ -1,6 +1,6 @@
-From 45fff541a0d64d737f2dd94b398002787ed6718c Mon Sep 17 00:00:00 2001
+From b43dfbfddae1bf89b8c61fc3e468ae81f392dfb4 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Tue, 25 Feb 2020 15:01:36 +0900
+Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 10/14] videobuf2: add begin/end cpu_access callbacks to
  dma-contig
 
