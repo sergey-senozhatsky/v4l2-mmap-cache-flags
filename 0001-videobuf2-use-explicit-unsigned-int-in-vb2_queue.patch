@@ -1,7 +1,7 @@
 From c96f045a73e9d301994c64e7908c428a31842b96 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:06 +0900
-Subject: [PATCH 01/13] videobuf2: use explicit unsigned int in vb2_queue
+Subject: [PATCH 01/14] videobuf2: use explicit unsigned int in vb2_queue
 
 Switch from 'unsigned' to 'unsigned int' so that checkpatch doesn't
 complain.

@@ -1,7 +1,7 @@
 From 45e1ddc08fc01f8caa83431f546b54fd86c48744 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 04/13] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+Subject: [PATCH 04/14] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 
 By setting or clearing V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 user-space should be able to set or clear queue's NON_CONSISTENT
