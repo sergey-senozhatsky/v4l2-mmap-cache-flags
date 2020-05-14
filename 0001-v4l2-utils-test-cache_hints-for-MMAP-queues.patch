@@ -1,7 +1,9 @@
 From c270f270844f6154a5f1b02277fcea8765d6f822 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Thu, 23 Apr 2020 19:41:11 +0900
-Subject: [PATCH] v4l2-utils: test cache_hints for MMAP queues
+Subject: [RFC][PATCH] v4l2-utils: test cache_hints for MMAP queues
+
+	RFC version
 
 The patch adds V4L2_FLAG_MEMORY_NON_CONSISTENT consistency
 attr test to VIDIOC_REQBUFS and VIDIOC_CREATE_BUFS ioctl-s,
