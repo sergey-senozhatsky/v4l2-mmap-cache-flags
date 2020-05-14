@@ -1,4 +1,4 @@
-From 586454a9841e79bc2ba66b8c05ece28e8895a813 Mon Sep 17 00:00:00 2001
+From 689aa6f03700be270bf73cdadbbffd012d0bb383 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 09/14] videobuf2: check ->synced flag in prepare() and
@@ -13,7 +13,7 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  1 file changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index 5409e15b6af4..5a69005b7d59 100644
+index 1a55ea19160b..7e081716b8da 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
 @@ -304,6 +304,9 @@ static void __vb2_buf_mem_prepare(struct vb2_buffer *vb)

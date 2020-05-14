@@ -1,4 +1,4 @@
-From e118ec3690ae58195e3178a26f1cf730d2ace9af Mon Sep 17 00:00:00 2001
+From 347d29fe4a0d3e6cbb048065600db20fde5e8230 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:06 +0900
 Subject: [PATCH 02/14] videobuf2: add cache management members
@@ -27,10 +27,6 @@ permit user-space cache hints. That's the purpose of vb2_queue
 ->allow_cache_hints member. Driver must set ->allow_cache_hints
 during queue initialisation to enable cache management hints
 mechanism.
-
-Only drivers that set ->allow_cache_hints during queue initialisation
-will handle user-space cache management hints. Otherwise hints
-will be ignored.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---

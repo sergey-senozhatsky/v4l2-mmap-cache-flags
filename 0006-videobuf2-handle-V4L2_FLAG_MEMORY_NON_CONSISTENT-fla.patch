@@ -1,4 +1,4 @@
-From f69a9def8a55287f4b53e333beb5fc1fb9702a06 Mon Sep 17 00:00:00 2001
+From 3688323cc39d12d014f802c0e2a47cf34cc52990 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 06/14] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -80,7 +80,7 @@ index cd7d863beb8d..b0fd72e09113 100644
  .. tabularcolumns:: |p{6.1cm}|p{2.2cm}|p{8.7cm}|
  
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index f1a65925bc17..d16f47022552 100644
+index b1332f7f1aad..6efac531006f 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
 @@ -695,6 +695,9 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
@@ -104,16 +104,16 @@ index f1a65925bc17..d16f47022552 100644
  		dprintk(1, "maximum number of buffers already allocated\n");
  		return -ENOBUFS;
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 764be175f433..fa33bf133a06 100644
+index 26a3ec333bb7..e23143d5d594 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
 @@ -718,12 +718,22 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
  #endif
  }
  
-+static void fill_consistency_attr(struct vb2_queue *q,
-+				  int memory,
-+				  unsigned int *flags)
++static void clear_consistency_attr(struct vb2_queue *q,
++				   int memory,
++				   unsigned int *flags)
 +{
 +	if (!q->allow_cache_hints || memory != V4L2_MEMORY_MMAP)
 +		*flags &= ~V4L2_FLAG_MEMORY_NON_CONSISTENT;
@@ -125,7 +125,7 @@ index 764be175f433..fa33bf133a06 100644
  
  	fill_buf_caps(q, &req->capabilities);
 -	return ret ? ret : vb2_core_reqbufs(q, req->memory, 0, &req->count);
-+	fill_consistency_attr(q, req->memory, &req->flags);
++	clear_consistency_attr(q, req->memory, &req->flags);
 +	return ret ? ret : vb2_core_reqbufs(q, req->memory,
 +					    req->flags, &req->count);
  }
@@ -135,7 +135,7 @@ index 764be175f433..fa33bf133a06 100644
  	unsigned i;
  
  	fill_buf_caps(q, &create->capabilities);
-+	fill_consistency_attr(q, create->memory, &create->flags);
++	clear_consistency_attr(q, create->memory, &create->flags);
  	create->index = q->num_buffers;
  	if (create->count == 0)
  		return ret != -EBUSY ? ret : 0;
@@ -143,7 +143,7 @@ index 764be175f433..fa33bf133a06 100644
  	for (i = 0; i < requested_planes; i++)
  		if (requested_sizes[i] == 0)
  			return -EINVAL;
--	return ret ? ret : vb2_core_create_bufs(q, create->memory, true,
+-	return ret ? ret : vb2_core_create_bufs(q, create->memory, 0,
 -		&create->count, requested_planes, requested_sizes);
 +	return ret ? ret : vb2_core_create_bufs(q, create->memory,
 +						create->flags,
@@ -157,7 +157,7 @@ index 764be175f433..fa33bf133a06 100644
  	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
  
  	fill_buf_caps(vdev->queue, &p->capabilities);
-+	fill_consistency_attr(vdev->queue, p->memory, &p->flags);
++	clear_consistency_attr(vdev->queue, p->memory, &p->flags);
  	if (res)
  		return res;
  	if (vb2_queue_is_busy(vdev, file))

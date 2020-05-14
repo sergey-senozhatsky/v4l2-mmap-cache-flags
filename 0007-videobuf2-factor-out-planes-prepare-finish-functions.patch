@@ -1,4 +1,4 @@
-From 24fd3582ea6f3f1f165a18d2432216aea47aaa5d Mon Sep 17 00:00:00 2001
+From 8c5a63e4ce1a9404b5a29b89228b2bb27c6eccb5 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 07/14] videobuf2: factor out planes prepare/finish functions
@@ -11,7 +11,7 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  1 file changed, 31 insertions(+), 21 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index d16f47022552..0be31a11c913 100644
+index 6efac531006f..6a95663afcd1 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
 @@ -296,6 +296,32 @@ static void __vb2_buf_dmabuf_put(struct vb2_buffer *vb)

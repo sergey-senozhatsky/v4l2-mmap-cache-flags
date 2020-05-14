@@ -1,4 +1,4 @@
-From e1dc679f39c72f3ffb6482a4d5c2a2ad43befd4f Mon Sep 17 00:00:00 2001
+From f8ee2fb5a80c9c3552ccbc1871ff51507402b5c3 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 04/14] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -14,18 +14,18 @@ The patch set also adds a corresponding capability flag:
 fill_buf_caps() reports V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
 when queue supports user-space cache management hints. Note,
 however, that MMAP_CACHE_HINTS capability only valid when the
-queue is used memory MMAP-ed I/O.
+queue is used for memory MMAP-ed streaming I/O.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- .../userspace-api/media/v4l/buffer.rst        | 42 ++++++++++++++++++-
+ .../userspace-api/media/v4l/buffer.rst        | 40 ++++++++++++++++++-
  .../media/v4l/vidioc-reqbufs.rst              | 10 +++++
  .../media/common/videobuf2/videobuf2-v4l2.c   |  2 +
  include/uapi/linux/videodev2.h                |  3 ++
- 4 files changed, 55 insertions(+), 2 deletions(-)
+ 4 files changed, 53 insertions(+), 2 deletions(-)
 
 diff --git a/Documentation/userspace-api/media/v4l/buffer.rst b/Documentation/userspace-api/media/v4l/buffer.rst
-index 951ae1ed485f..74a5f6bfe5a8 100644
+index 951ae1ed485f..5088393b5a5c 100644
 --- a/Documentation/userspace-api/media/v4l/buffer.rst
 +++ b/Documentation/userspace-api/media/v4l/buffer.rst
 @@ -577,7 +577,10 @@ Buffer Flags
@@ -52,7 +52,7 @@ index 951ae1ed485f..74a5f6bfe5a8 100644
      * .. _`V4L2-BUF-FLAG-M2M-HOLD-CAPTURE-BUF`:
  
        - ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF``
-@@ -681,6 +687,38 @@ Buffer Flags
+@@ -681,6 +687,36 @@ Buffer Flags
  
      \normalsize
  
@@ -84,10 +84,8 @@ index 951ae1ed485f..74a5f6bfe5a8 100644
 +	consistency is needed. If this flag is set V4L2 will attempt to
 +	allocate the buffer in non-consistent memory. The flag takes effect
 +	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
-+	queue reports the
-+	:ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
-+        <V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>`
-+	capability.
++	queue reports the :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
++	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
  
  .. c:type:: v4l2_memory
  

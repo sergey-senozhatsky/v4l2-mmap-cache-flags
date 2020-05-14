@@ -1,12 +1,12 @@
-From 6ac0059604cd3501469eb7ad0f7ba132cad062cb Mon Sep 17 00:00:00 2001
+From 25c9efd90e4d6e1ec7ade6b6deb0df6b0fc8847c Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 05/14] videobuf2: add queue memory consistency parameter
 
 Preparations for future V4L2_FLAG_MEMORY_NON_CONSISTENT support.
 
-Extend vb2_core_reqbufs() with queue memory consistency flag
-that is applied to the newly allocated buffers.
+Extend vb2_core_reqbufs() parameters list to accept requests'
+->flags, which will be used for memory consistency configuration.
 
 An attempt to allocate a buffer with consistency requirements
 which don't match queue's consistency model will fail.
@@ -20,7 +20,7 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  4 files changed, 52 insertions(+), 16 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index 44d65f5be845..f1a65925bc17 100644
+index 44d65f5be845..b1332f7f1aad 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
 @@ -664,11 +664,34 @@ int vb2_verify_memory_type(struct vb2_queue *q,
@@ -69,14 +69,14 @@ index 44d65f5be845..f1a65925bc17 100644
  		/*
  		 * We already have buffers allocated, so first check if they
  		 * are not in use and can be freed.
-@@ -730,6 +754,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
- 	if (ret)
- 		return ret;
- 
+@@ -720,6 +744,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+ 	num_buffers = min_t(unsigned int, num_buffers, VB2_MAX_FRAME);
+ 	memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
+ 	q->memory = memory;
 +	set_queue_consistency(q, consistent_mem);
- 	/* Check that driver has set sane values */
- 	if (WARN_ON(!num_planes))
- 		return -EINVAL;
+ 
+ 	/*
+ 	 * Ask the driver how many buffers and planes per buffer it requires.
 @@ -804,11 +829,13 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
  EXPORT_SYMBOL_GPL(vb2_core_reqbufs);
  
@@ -93,9 +93,11 @@ index 44d65f5be845..f1a65925bc17 100644
  	int ret;
  
  	if (q->num_buffers == VB2_MAX_FRAME) {
-@@ -824,9 +851,13 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -823,10 +850,15 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
+ 		}
  		memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
  		q->memory = memory;
++		set_queue_consistency(q, consistent_mem);
  		q->waiting_for_buffers = !q->is_output;
 -	} else if (q->memory != memory) {
 -		dprintk(1, "memory model mismatch\n");
@@ -110,14 +112,6 @@ index 44d65f5be845..f1a65925bc17 100644
  	}
  
  	num_buffers = min(*count, VB2_MAX_FRAME - q->num_buffers);
-@@ -845,6 +876,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
- 	if (ret)
- 		return ret;
- 
-+	set_queue_consistency(q, consistent_mem);
- 	/* Finally, allocate buffers and video memory */
- 	allocated_buffers = __vb2_queue_alloc(q, memory, num_buffers,
- 				num_planes, plane_sizes);
 @@ -2498,7 +2530,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
  	fileio->memory = VB2_MEMORY_MMAP;
  	fileio->type = q->type;
@@ -146,7 +140,7 @@ index 44d65f5be845..f1a65925bc17 100644
  		dprintk(3, "file io emulator closed\n");
  	}
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index e4b4354b42b8..764be175f433 100644
+index e4b4354b42b8..26a3ec333bb7 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
 @@ -723,7 +723,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
@@ -163,7 +157,7 @@ index e4b4354b42b8..764be175f433 100644
  		if (requested_sizes[i] == 0)
  			return -EINVAL;
 -	return ret ? ret : vb2_core_create_bufs(q, create->memory,
-+	return ret ? ret : vb2_core_create_bufs(q, create->memory, true,
++	return ret ? ret : vb2_core_create_bufs(q, create->memory, 0,
  		&create->count, requested_planes, requested_sizes);
  }
  EXPORT_SYMBOL_GPL(vb2_create_bufs);
