@@ -1,7 +1,8 @@
-From 3688323cc39d12d014f802c0e2a47cf34cc52990 Mon Sep 17 00:00:00 2001
+From 1b02065d2ebb26b9deefbb6ac6fff67b4a06c5c4 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 06/14] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+Subject: [PATCH v6 06/14] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT
+ flag
 
 This patch lets user-space to request a non-consistent memory
 allocation during CREATE_BUFS and REQBUFS ioctl calls.
@@ -56,7 +57,7 @@ index e1afc5b504c2..f2a702870fad 100644
  	must set the array to zero.
  
 diff --git a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
-index cd7d863beb8d..b0fd72e09113 100644
+index 96a59793d857..75d894d9c36c 100644
 --- a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
 +++ b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
 @@ -112,10 +112,17 @@ aborting or finishing any DMA in progress, an implicit
@@ -104,7 +105,7 @@ index b1332f7f1aad..6efac531006f 100644
  		dprintk(1, "maximum number of buffers already allocated\n");
  		return -ENOBUFS;
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 26a3ec333bb7..e23143d5d594 100644
+index 26a3ec333bb7..559a229cac41 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
 @@ -718,12 +718,22 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
@@ -153,7 +154,7 @@ index 26a3ec333bb7..e23143d5d594 100644
  }
  EXPORT_SYMBOL_GPL(vb2_create_bufs);
  
-@@ -969,11 +983,13 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
+@@ -969,11 +983,12 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
  	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
  
  	fill_buf_caps(vdev->queue, &p->capabilities);
@@ -163,11 +164,18 @@ index 26a3ec333bb7..e23143d5d594 100644
  	if (vb2_queue_is_busy(vdev, file))
  		return -EBUSY;
 -	res = vb2_core_reqbufs(vdev->queue, p->memory, 0, &p->count);
-+
 +	res = vb2_core_reqbufs(vdev->queue, p->memory, p->flags, &p->count);
  	/* If count == 0, then the owner has released all buffers and he
  	   is no longer owner of the queue. Otherwise we have a new owner. */
  	if (res == 0)
+@@ -991,6 +1006,7 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
+ 
+ 	p->index = vdev->queue->num_buffers;
+ 	fill_buf_caps(vdev->queue, &p->capabilities);
++	clear_consistency_attr(vdev->queue, p->memory, &p->flags);
+ 	/*
+ 	 * If count == 0, then just check if memory and type are valid.
+ 	 * Any -EBUSY result from vb2_verify_memory_type can be mapped to 0.
 diff --git a/drivers/media/v4l2-core/v4l2-compat-ioctl32.c b/drivers/media/v4l2-core/v4l2-compat-ioctl32.c
 index a99e82ec9ab6..593bcf6c3735 100644
 --- a/drivers/media/v4l2-core/v4l2-compat-ioctl32.c

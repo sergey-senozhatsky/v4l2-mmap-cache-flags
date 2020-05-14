@@ -1,12 +1,12 @@
-From b07ff998f31da8379477fc8f9ff8f3a0f16fb3e1 Mon Sep 17 00:00:00 2001
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+From 90a42e692599d2841b00ea8f0f4be9fed9b8e76d Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 14/14] media: vivid: add cache_hints module param
+Subject: [PATCH v6 14/14] media: vivid: add cache_hints module param
 
 Add a cache_hints module param to control per-queue user space cache
 hints support.
 
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
  Documentation/admin-guide/media/vivid.rst     | 9 +++++++++
  drivers/media/test-drivers/vivid/vivid-core.c | 9 +++++++++

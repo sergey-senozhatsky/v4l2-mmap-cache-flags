@@ -1,7 +1,7 @@
-From 50b817c434533f3d169682082e63e5b673e8fb58 Mon Sep 17 00:00:00 2001
+From 8b2fdefb46bf7ae52483837dee97fb69892b2c2e Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 25 Feb 2020 15:01:35 +0900
-Subject: [PATCH 03/14] videobuf2: handle V4L2 buffer cache flags
+Subject: [PATCH v6 03/14] videobuf2: handle V4L2 buffer cache flags
 
 Set video buffer cache management flags corresponding to V4L2 cache
 flags.

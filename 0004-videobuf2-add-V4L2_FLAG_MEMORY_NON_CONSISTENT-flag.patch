@@ -1,7 +1,7 @@
-From f8ee2fb5a80c9c3552ccbc1871ff51507402b5c3 Mon Sep 17 00:00:00 2001
+From fa671afbffadb2275faedd25d015a823877b7cf6 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 04/14] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+Subject: [PATCH v6 04/14] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 
 By setting or clearing V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 user-space should be able to set or clear queue's NON_CONSISTENT
@@ -90,7 +90,7 @@ index 951ae1ed485f..5088393b5a5c 100644
  .. c:type:: v4l2_memory
  
 diff --git a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
-index b6d52083707b..cd7d863beb8d 100644
+index b6d52083707b..96a59793d857 100644
 --- a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
 +++ b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
 @@ -126,6 +126,7 @@ aborting or finishing any DMA in progress, an implicit
@@ -107,7 +107,7 @@ index b6d52083707b..cd7d863beb8d 100644
  	capture buffer until the OUTPUT timestamp changes.
 +    * - ``V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS``
 +      - 0x00000040
-+      - This capabilty is set by the driver to indicate that the queue supports
++      - This capability is set by the driver to indicate that the queue supports
 +        cache and memory management hints. However, it's only valid when the
 +        queue is used for :ref:`memory mapping <mmap>` streaming I/O. See
 +        :ref:`V4L2_FLAG_MEMORY_NON_CONSISTENT <V4L2-FLAG-MEMORY-NON-CONSISTENT>`,

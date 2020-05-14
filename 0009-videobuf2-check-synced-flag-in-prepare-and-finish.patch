@@ -1,7 +1,7 @@
-From 689aa6f03700be270bf73cdadbbffd012d0bb383 Mon Sep 17 00:00:00 2001
+From e1d3a8049f92bae067bcbdf311bee2e284fc2991 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 09/14] videobuf2: check ->synced flag in prepare() and
+Subject: [PATCH v6 09/14] videobuf2: check ->synced flag in prepare() and
  finish()
 
 This simplifies the code a tiny bit and let's us to avoid

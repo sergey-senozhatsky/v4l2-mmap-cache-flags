@@ -1,7 +1,8 @@
-From a4fd43bc79b9a1821e44c10da3bde267089a3670 Mon Sep 17 00:00:00 2001
+From 0cf6dbb0a4c7448788171f97aa748aec885fa890 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 11/14] videobuf2: add begin/end cpu_access callbacks to dma-sg
+Subject: [PATCH v6 11/14] videobuf2: add begin/end cpu_access callbacks to
+ dma-sg
 
 Provide begin_cpu_access() and end_cpu_access() dma_buf_ops
 callbacks for cache synchronisation on exported buffers.

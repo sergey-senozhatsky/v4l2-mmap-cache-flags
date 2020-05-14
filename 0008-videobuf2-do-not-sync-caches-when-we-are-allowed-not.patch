@@ -1,8 +1,8 @@
-From 6d07e103dfc79e8bcb43305972ae4e198e28a54b Mon Sep 17 00:00:00 2001
+From e4c9efacc6ec398f72f68f191946e1aaed72fac4 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
-Subject: [PATCH 08/14] videobuf2: do not sync caches when we are allowed not
- to
+Subject: [PATCH v6 08/14] videobuf2: do not sync caches when we are allowed
+ not to
 
 Skip ->prepare() or/and ->finish() cache synchronisation if
 user-space requested us to do so (or when queue dma direction
