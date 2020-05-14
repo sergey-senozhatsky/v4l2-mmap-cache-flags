@@ -1,4 +1,4 @@
-From eef8b1c18d1dcd16e74a54ff328b48a0269825b0 Mon Sep 17 00:00:00 2001
+From f69a9def8a55287f4b53e333beb5fc1fb9702a06 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 06/14] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -28,14 +28,14 @@ allocation during CREATE_BUFS and REQBUFS ioctl calls.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- .../media/v4l/vidioc-create-bufs.rst           |  7 ++++++-
- .../userspace-api/media/v4l/vidioc-reqbufs.rst | 11 +++++++++--
- .../media/common/videobuf2/videobuf2-core.c    |  6 ++++++
- .../media/common/videobuf2/videobuf2-v4l2.c    | 18 ++++++++++++++++--
- drivers/media/v4l2-core/v4l2-compat-ioctl32.c  | 10 ++++++++--
- drivers/media/v4l2-core/v4l2-ioctl.c           |  5 +----
- include/uapi/linux/videodev2.h                 | 11 +++++++++--
- 7 files changed, 55 insertions(+), 13 deletions(-)
+ .../media/v4l/vidioc-create-bufs.rst          |  7 +++++-
+ .../media/v4l/vidioc-reqbufs.rst              | 11 +++++++--
+ .../media/common/videobuf2/videobuf2-core.c   |  6 +++++
+ .../media/common/videobuf2/videobuf2-v4l2.c   | 24 +++++++++++++++----
+ drivers/media/v4l2-core/v4l2-compat-ioctl32.c | 10 ++++++--
+ drivers/media/v4l2-core/v4l2-ioctl.c          |  5 +---
+ include/uapi/linux/videodev2.h                | 11 +++++++--
+ 7 files changed, 59 insertions(+), 15 deletions(-)
 
 diff --git a/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst b/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst
 index e1afc5b504c2..f2a702870fad 100644
@@ -104,10 +104,10 @@ index f1a65925bc17..d16f47022552 100644
  		dprintk(1, "maximum number of buffers already allocated\n");
  		return -ENOBUFS;
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 764be175f433..59cf882a766b 100644
+index 764be175f433..fa33bf133a06 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-@@ -718,12 +718,23 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+@@ -718,12 +718,22 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
  #endif
  }
  
@@ -126,13 +126,12 @@ index 764be175f433..59cf882a766b 100644
  	fill_buf_caps(q, &req->capabilities);
 -	return ret ? ret : vb2_core_reqbufs(q, req->memory, 0, &req->count);
 +	fill_consistency_attr(q, req->memory, &req->flags);
-+	if (ret)
-+		return ret;
-+	return vb2_core_reqbufs(q, req->memory, req->flags, &req->count);
++	return ret ? ret : vb2_core_reqbufs(q, req->memory,
++					    req->flags, &req->count);
  }
  EXPORT_SYMBOL_GPL(vb2_reqbufs);
  
-@@ -755,6 +766,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+@@ -755,6 +765,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
  	unsigned i;
  
  	fill_buf_caps(q, &create->capabilities);
@@ -140,7 +139,21 @@ index 764be175f433..59cf882a766b 100644
  	create->index = q->num_buffers;
  	if (create->count == 0)
  		return ret != -EBUSY ? ret : 0;
-@@ -969,11 +981,13 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
+@@ -797,8 +808,11 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+ 	for (i = 0; i < requested_planes; i++)
+ 		if (requested_sizes[i] == 0)
+ 			return -EINVAL;
+-	return ret ? ret : vb2_core_create_bufs(q, create->memory, true,
+-		&create->count, requested_planes, requested_sizes);
++	return ret ? ret : vb2_core_create_bufs(q, create->memory,
++						create->flags,
++						&create->count,
++						requested_planes,
++						requested_sizes);
+ }
+ EXPORT_SYMBOL_GPL(vb2_create_bufs);
+ 
+@@ -969,11 +983,13 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
  	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
  
  	fill_buf_caps(vdev->queue, &p->capabilities);

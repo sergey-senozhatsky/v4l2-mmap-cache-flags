@@ -1,4 +1,4 @@
-From c66a1e068ee4aad8872869c29d19ffbb9e15d5ee Mon Sep 17 00:00:00 2001
+From 0c678add6af95132a981b35484e5724ceadffa79 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 14/14] media: vivid: add cache_hints module param
