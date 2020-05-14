@@ -1,4 +1,4 @@
-From c96f045a73e9d301994c64e7908c428a31842b96 Mon Sep 17 00:00:00 2001
+From 6384983c68fc223d02bcb83bed3b9557fa545b82 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:06 +0900
 Subject: [PATCH 01/14] videobuf2: use explicit unsigned int in vb2_queue

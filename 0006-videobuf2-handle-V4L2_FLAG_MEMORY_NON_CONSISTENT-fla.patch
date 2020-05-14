@@ -1,4 +1,4 @@
-From d2251d1fb8dae3980d07461db736d7f1fa61dbd2 Mon Sep 17 00:00:00 2001
+From eef8b1c18d1dcd16e74a54ff328b48a0269825b0 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 06/14] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -32,10 +32,10 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  .../userspace-api/media/v4l/vidioc-reqbufs.rst | 11 +++++++++--
  .../media/common/videobuf2/videobuf2-core.c    |  6 ++++++
  .../media/common/videobuf2/videobuf2-v4l2.c    | 18 ++++++++++++++++--
- drivers/media/v4l2-core/v4l2-compat-ioctl32.c  |  9 +++++++--
+ drivers/media/v4l2-core/v4l2-compat-ioctl32.c  | 10 ++++++++--
  drivers/media/v4l2-core/v4l2-ioctl.c           |  5 +----
- include/uapi/linux/videodev2.h                 | 10 ++++++++--
- 7 files changed, 53 insertions(+), 13 deletions(-)
+ include/uapi/linux/videodev2.h                 | 11 +++++++++--
+ 7 files changed, 55 insertions(+), 13 deletions(-)
 
 diff --git a/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst b/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst
 index e1afc5b504c2..f2a702870fad 100644
@@ -156,19 +156,20 @@ index 764be175f433..59cf882a766b 100644
  	   is no longer owner of the queue. Otherwise we have a new owner. */
  	if (res == 0)
 diff --git a/drivers/media/v4l2-core/v4l2-compat-ioctl32.c b/drivers/media/v4l2-core/v4l2-compat-ioctl32.c
-index a99e82ec9ab6..aa162ed6d01c 100644
+index a99e82ec9ab6..593bcf6c3735 100644
 --- a/drivers/media/v4l2-core/v4l2-compat-ioctl32.c
 +++ b/drivers/media/v4l2-core/v4l2-compat-ioctl32.c
-@@ -246,6 +246,8 @@ struct v4l2_format32 {
+@@ -246,6 +246,9 @@ struct v4l2_format32 {
   * @memory:	buffer memory type
   * @format:	frame format, for which buffers are requested
   * @capabilities: capabilities of this buffer type.
-+ * @flags:	additional buffer management attributes (ignored if queue
-+ *		does not have V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS capability).
++ * @flags:	additional buffer management attributes (ignored unless the
++ *		queue has V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS capability and
++ *		configured for MMAP streaming I/O).
   * @reserved:	future extensions
   */
  struct v4l2_create_buffers32 {
-@@ -254,7 +256,8 @@ struct v4l2_create_buffers32 {
+@@ -254,7 +257,8 @@ struct v4l2_create_buffers32 {
  	__u32			memory;	/* enum v4l2_memory */
  	struct v4l2_format32	format;
  	__u32			capabilities;
@@ -178,7 +179,7 @@ index a99e82ec9ab6..aa162ed6d01c 100644
  };
  
  static int __bufsize_v4l2_format(struct v4l2_format32 __user *p32, u32 *size)
-@@ -355,7 +358,8 @@ static int get_v4l2_create32(struct v4l2_create_buffers __user *p64,
+@@ -355,7 +359,8 @@ static int get_v4l2_create32(struct v4l2_create_buffers __user *p64,
  {
  	if (!access_ok(p32, sizeof(*p32)) ||
  	    copy_in_user(p64, p32,
@@ -188,7 +189,7 @@ index a99e82ec9ab6..aa162ed6d01c 100644
  		return -EFAULT;
  	return __get_v4l2_format32(&p64->format, &p32->format,
  				   aux_buf, aux_space);
-@@ -417,6 +421,7 @@ static int put_v4l2_create32(struct v4l2_create_buffers __user *p64,
+@@ -417,6 +422,7 @@ static int put_v4l2_create32(struct v4l2_create_buffers __user *p64,
  	    copy_in_user(p32, p64,
  			 offsetof(struct v4l2_create_buffers32, format)) ||
  	    assign_in_user(&p32->capabilities, &p64->capabilities) ||
@@ -220,7 +221,7 @@ index 2322f08a98be..02bfef0da76d 100644
  	v4l_sanitize_format(&create->format);
  
 diff --git a/include/uapi/linux/videodev2.h b/include/uapi/linux/videodev2.h
-index 34ba1017b89b..4039f5416965 100644
+index 34ba1017b89b..fec2607a07e3 100644
 --- a/include/uapi/linux/videodev2.h
 +++ b/include/uapi/linux/videodev2.h
 @@ -946,7 +946,10 @@ struct v4l2_requestbuffers {
@@ -235,16 +236,17 @@ index 34ba1017b89b..4039f5416965 100644
  };
  
  /* capabilities for struct v4l2_requestbuffers and v4l2_create_buffers */
-@@ -2450,6 +2453,8 @@ struct v4l2_dbg_chip_info {
+@@ -2450,6 +2453,9 @@ struct v4l2_dbg_chip_info {
   * @memory:	enum v4l2_memory; buffer memory type
   * @format:	frame format, for which buffers are requested
   * @capabilities: capabilities of this buffer type.
-+ * @flags:	additional buffer management attributes (ignored if queue
-+ *		does not have V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS capability).
++ * @flags:	additional buffer management attributes (ignored unless the
++ *		queue has V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS capability
++ *		and configured for MMAP streaming I/O).
   * @reserved:	future extensions
   */
  struct v4l2_create_buffers {
-@@ -2458,7 +2463,8 @@ struct v4l2_create_buffers {
+@@ -2458,7 +2464,8 @@ struct v4l2_create_buffers {
  	__u32			memory;
  	struct v4l2_format	format;
  	__u32			capabilities;

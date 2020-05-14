@@ -1,4 +1,4 @@
-From d5de743eb06db429caac6c2bb376c22214efc7c3 Mon Sep 17 00:00:00 2001
+From e1dc679f39c72f3ffb6482a4d5c2a2ad43befd4f Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 04/14] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -11,10 +11,10 @@ to request vb2 buffer's memory to be either consistent (coherent)
 or non-consistent.
 
 The patch set also adds a corresponding capability flag:
-fill_buf_caps() reports V4L2_BUF_CAP_SUPPORTS_CACHE_HINTS when
-queue supports user-space cache management hints. Note that
-queue should be set up and initialized, since it's the driver
-that sets ->allow_cache_hints.
+fill_buf_caps() reports V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
+when queue supports user-space cache management hints. Note,
+however, that MMAP_CACHE_HINTS capability only valid when the
+queue is used memory MMAP-ed I/O.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
