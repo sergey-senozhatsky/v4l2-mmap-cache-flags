@@ -1,4 +1,4 @@
-From 625d38ed90204971f03a68b1819bcb74f2f69ee4 Mon Sep 17 00:00:00 2001
+From dc11191eb60e002b2d1138e11512955dd1b8cddc Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Thu, 14 May 2020 12:55:10 +0900
 Subject: [PATCH 13/14] videobuf2: remove redundant if-statement

@@ -1,4 +1,4 @@
-From 45e1ddc08fc01f8caa83431f546b54fd86c48744 Mon Sep 17 00:00:00 2001
+From d5de743eb06db429caac6c2bb376c22214efc7c3 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 04/14] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
@@ -25,7 +25,7 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  4 files changed, 55 insertions(+), 2 deletions(-)
 
 diff --git a/Documentation/userspace-api/media/v4l/buffer.rst b/Documentation/userspace-api/media/v4l/buffer.rst
-index 951ae1ed485f..b9f836d14537 100644
+index 951ae1ed485f..74a5f6bfe5a8 100644
 --- a/Documentation/userspace-api/media/v4l/buffer.rst
 +++ b/Documentation/userspace-api/media/v4l/buffer.rst
 @@ -577,7 +577,10 @@ Buffer Flags
@@ -36,7 +36,7 @@ index 951ae1ed485f..b9f836d14537 100644
 +	further processing or output. This flag is ignored unless the
 +	queue is used for :ref:`memory mapping <mmap>` streaming I/O and
 +	reports :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
-+	<V4L2-BUF-CAP-SUPPORTS-CACHE-HINTS>` capability.
++	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
      * .. _`V4L2-BUF-FLAG-NO-CACHE-CLEAN`:
  
        - ``V4L2_BUF_FLAG_NO_CACHE_CLEAN``
@@ -48,7 +48,7 @@ index 951ae1ed485f..b9f836d14537 100644
 +	DMA-capable unit, in which case caches have not been used. This flag
 +	is ignored unless the queue is used for :ref:`memory mapping <mmap>`
 +	streaming I/O and reports :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
-+	<V4L2-BUF-CAP-SUPPORTS-CACHE-HINTS>` capability.
++	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
      * .. _`V4L2-BUF-FLAG-M2M-HOLD-CAPTURE-BUF`:
  
        - ``V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF``
@@ -86,7 +86,7 @@ index 951ae1ed485f..b9f836d14537 100644
 +	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
 +	queue reports the
 +	:ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
-+        <V4L2-BUF-CAP-SUPPORTS-CACHE-HINTS>`
++        <V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>`
 +	capability.
  
  .. c:type:: v4l2_memory
