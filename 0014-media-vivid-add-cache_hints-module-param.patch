@@ -1,4 +1,4 @@
-From 0c678add6af95132a981b35484e5724ceadffa79 Mon Sep 17 00:00:00 2001
+From 9d36ea9f5fded1aea40f5f56261ff62e1e2442d8 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Fri, 24 Apr 2020 13:43:07 +0900
 Subject: [PATCH 14/14] media: vivid: add cache_hints module param
@@ -13,7 +13,7 @@ Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
  2 files changed, 18 insertions(+)
 
 diff --git a/Documentation/admin-guide/media/vivid.rst b/Documentation/admin-guide/media/vivid.rst
-index 52e57b773f07..a41fa7129dec 100644
+index 52e57b773f07..6d7175f96f74 100644
 --- a/Documentation/admin-guide/media/vivid.rst
 +++ b/Documentation/admin-guide/media/vivid.rst
 @@ -293,6 +293,15 @@ all configurable using the following module options:
@@ -22,9 +22,9 @@ index 52e57b773f07..a41fa7129dec 100644
  
 +- cache_hints:
 +
-+	user-space cache hints selection, default is 0. It specifies if the
-+	device supports user-space cache (for MMAP queues only) and memory
-+	consistency hints.
++	specifies if the device should set queues' user-space cache and memory
++	consistency hint capability (V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS).
++	The hints are valid only when using MMAP streaming I/O. Default is 0.
 +
 +		- 0: forbid hints
 +		- 1: allow hints
