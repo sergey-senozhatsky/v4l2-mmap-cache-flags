@@ -1,7 +1,7 @@
-From eca52a8c557f9c10107ff39d06464d2c8f1302d9 Mon Sep 17 00:00:00 2001
+From 2a53bd6efa16d75baa623786d8692d9d685d5e7e Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Date: Thu, 4 Jun 2020 12:41:39 +0900
-Subject: [PATCH] v4l2-utils: test cache_hints for MMAP queues
+Subject: [PATCHv3] v4l2-utils: test cache_hints for MMAP queues
 
 The patch adds V4L2_FLAG_MEMORY_NON_CONSISTENT consistency
 attr test to VIDIOC_REQBUFS and VIDIOC_CREATE_BUFS ioctl-s,
@@ -10,11 +10,14 @@ buffer cache management hints test for MMAP queues.
 
 Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 ---
+
+v3: intergated cache-hints test into testReqBufs (Hans)
+
  utils/common/cv4l-helpers.h                 |   8 +-
  utils/common/v4l-helpers.h                  |  10 +-
  utils/common/v4l2-info.cpp                  |   1 +
- utils/v4l2-compliance/v4l2-test-buffers.cpp | 127 +++++++++++++++++++-
- 4 files changed, 133 insertions(+), 13 deletions(-)
+ utils/v4l2-compliance/v4l2-test-buffers.cpp | 105 +++++++++++++++++---
+ 4 files changed, 102 insertions(+), 22 deletions(-)
 
 diff --git a/utils/common/cv4l-helpers.h b/utils/common/cv4l-helpers.h
 index 9505e334..9de0cdf0 100644
@@ -104,7 +107,7 @@ index 0aac8504..a69569a6 100644
  };
  
 diff --git a/utils/v4l2-compliance/v4l2-test-buffers.cpp b/utils/v4l2-compliance/v4l2-test-buffers.cpp
-index fc49fff6..b6419d27 100644
+index fc49fff6..d1224438 100644
 --- a/utils/v4l2-compliance/v4l2-test-buffers.cpp
 +++ b/utils/v4l2-compliance/v4l2-test-buffers.cpp
 @@ -381,8 +381,6 @@ int buffer::check(unsigned type, unsigned memory, unsigned index,
@@ -116,123 +119,89 @@ index fc49fff6..b6419d27 100644
  	if (g_flags() & V4L2_BUF_FLAG_QUEUED)
  		buf_states++;
  	if (g_flags() & V4L2_BUF_FLAG_DONE)
-@@ -534,6 +532,88 @@ static int testCanSetSameTimings(struct node *node)
- 	return 0;
- }
+@@ -661,6 +659,10 @@ int testReqBufs(struct node *node)
+ 		fail_on_test(q.reqbufs(node, 0));
  
-+static int setupMmap(struct node *node, cv4l_queue &q);
+ 		for (m = V4L2_MEMORY_MMAP; m <= V4L2_MEMORY_DMABUF; m++) {
++			bool cache_hints_cap = false;
++			bool consistent;
 +
-+static int testCacheHints(struct node *node, int m)
-+{
-+	struct v4l2_create_buffers crbufs = { };
-+	struct v4l2_requestbuffers reqbufs = { };
-+	bool cache_hints_cap = false;
-+	bool consistent;
-+	cv4l_queue q;
-+	cv4l_fmt fmt;
-+	int ret;
-+
-+	q.init(node->g_type(), m);
-+	ret = q.reqbufs(node);
-+	if (ret)
-+		return ret;
-+
-+	cache_hints_cap = q.g_capabilities() & V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS;
-+
-+	reqbufs.count = 2;
-+	reqbufs.type = q.g_type();
-+	reqbufs.memory = q.g_memory();
-+	reqbufs.flags = V4L2_FLAG_MEMORY_NON_CONSISTENT;
-+	fail_on_test(doioctl(node, VIDIOC_REQBUFS, &reqbufs));
-+	consistent = reqbufs.flags & V4L2_FLAG_MEMORY_NON_CONSISTENT;
-+	if (!cache_hints_cap) {
-+		fail_on_test(consistent);
-+	} else {
-+		if (m == V4L2_MEMORY_MMAP)
-+			fail_on_test(!consistent);
-+		else
-+			fail_on_test(consistent);
-+	}
-+
-+	q.reqbufs(node);
-+
-+	node->g_fmt(crbufs.format, q.g_type());
-+	crbufs.count = 2;
-+	crbufs.memory = q.g_memory();
-+	crbufs.flags = V4L2_FLAG_MEMORY_NON_CONSISTENT;
-+	fail_on_test(doioctl(node, VIDIOC_CREATE_BUFS, &crbufs));
-+	consistent = crbufs.flags & V4L2_FLAG_MEMORY_NON_CONSISTENT;
-+	if (!cache_hints_cap) {
-+		fail_on_test(consistent);
-+	} else {
-+		if (m == V4L2_MEMORY_MMAP)
-+			fail_on_test(!consistent);
-+		else
-+			fail_on_test(consistent);
-+	}
-+
-+	if (cache_hints_cap) {
-+		crbufs.count = 2;
-+		crbufs.memory = q.g_memory();
-+		/*
-+		 * Different memory consistency model. Should fail for MMAP
-+		 * queues which support cache hints.
-+		 */
-+		crbufs.flags = 0;
-+		if (m == V4L2_MEMORY_MMAP)
-+			fail_on_test(doioctl(node, VIDIOC_CREATE_BUFS, &crbufs) != EINVAL);
-+		else
-+			fail_on_test(doioctl(node, VIDIOC_CREATE_BUFS, &crbufs));
-+	}
-+	q.reqbufs(node);
-+
-+	/* For the time being only MMAP is tested */
-+	if (m != V4L2_MEMORY_MMAP)
-+		return 0;
-+
-+	node->g_fmt(fmt, q.g_type());
-+	q.create_bufs(node, 2, &fmt, 0);
-+	fail_on_test(setupMmap(node, q));
-+
-+	q.reqbufs(node);
-+	q.create_bufs(node, 2, &fmt, V4L2_FLAG_MEMORY_NON_CONSISTENT);
-+	fail_on_test(setupMmap(node, q));
-+
-+	q.reqbufs(node, 1);
-+	return ret;
-+}
-+
- int testReqBufs(struct node *node)
- {
- 	struct v4l2_create_buffers crbufs = { };
-@@ -676,8 +756,8 @@ int testReqBufs(struct node *node)
- 			reqbufs.count = 0;
++			cache_hints_cap = q.g_capabilities() & V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS;
+ 			if (!(node->valid_memorytype & (1 << m)))
+ 				continue;
+ 			cv4l_queue q2(i, m);
+@@ -673,11 +675,52 @@ int testReqBufs(struct node *node)
+ 				fail_on_test(q2.reqbufs(node->node2));
+ 			}
+ 			memset(&reqbufs, 0xff, sizeof(reqbufs));
+-			reqbufs.count = 0;
++			reqbufs.count = 1;
  			reqbufs.type = i;
  			reqbufs.memory = m;
-+			reqbufs.flags = 0;
++			reqbufs.flags = V4L2_FLAG_MEMORY_NON_CONSISTENT;
  			fail_on_test(doioctl(node, VIDIOC_REQBUFS, &reqbufs));
 -			fail_on_test(check_0(reqbufs.reserved, sizeof(reqbufs.reserved)));
++			consistent = reqbufs.flags & V4L2_FLAG_MEMORY_NON_CONSISTENT;
++			if (!cache_hints_cap) {
++				fail_on_test(consistent);
++			} else {
++				if (m == V4L2_MEMORY_MMAP)
++					fail_on_test(!consistent);
++				else
++					fail_on_test(consistent);
++			}
++			q.reqbufs(node);
++
++			memset(&crbufs, 0xff, sizeof(crbufs));
++			node->g_fmt(crbufs.format, i);
++			crbufs.count = 1;
++			crbufs.memory = m;
++			crbufs.flags = V4L2_FLAG_MEMORY_NON_CONSISTENT;
++			fail_on_test(doioctl(node, VIDIOC_CREATE_BUFS, &crbufs));
++			fail_on_test(check_0(crbufs.reserved, sizeof(crbufs.reserved)));
++			fail_on_test(crbufs.index != q.g_buffers());
++
++			consistent = crbufs.flags & V4L2_FLAG_MEMORY_NON_CONSISTENT;
++			if (!cache_hints_cap) {
++				fail_on_test(consistent);
++			} else {
++				if (m == V4L2_MEMORY_MMAP)
++					fail_on_test(!consistent);
++				else
++					fail_on_test(consistent);
++			}
++
++			if (cache_hints_cap) {
++				/*
++				 * Different memory consistency model. Should fail for MMAP
++				 * queues which support cache hints.
++				 */
++				crbufs.flags = 0;
++				if (m == V4L2_MEMORY_MMAP)
++					fail_on_test(doioctl(node, VIDIOC_CREATE_BUFS, &crbufs) != EINVAL);
++				else
++					fail_on_test(doioctl(node, VIDIOC_CREATE_BUFS, &crbufs));
++			}
  			q.reqbufs(node);
  
  			ret = q.create_bufs(node, 1);
-@@ -698,6 +778,7 @@ int testReqBufs(struct node *node)
- 			node->g_fmt(crbufs.format, i);
- 			crbufs.count = 0;
- 			crbufs.memory = m;
-+			crbufs.flags = 0;
- 			fail_on_test(doioctl(node, VIDIOC_CREATE_BUFS, &crbufs));
- 			fail_on_test(check_0(crbufs.reserved, sizeof(crbufs.reserved)));
- 			fail_on_test(crbufs.index != q.g_buffers());
-@@ -721,6 +802,8 @@ int testReqBufs(struct node *node)
- 					fmt.s_sizeimage(fmt.g_sizeimage(p) * 2, p);
- 				fail_on_test(q.create_bufs(node, 1, &fmt));
- 			}
-+
-+			printf("\ttest V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS: %s\n", ok(testCacheHints(node, m)));
- 		}
- 		fail_on_test(q.reqbufs(node));
- 	}
-@@ -1176,14 +1259,22 @@ static int bufferOutputErrorTest(struct node *node, const buffer &orig_buf)
+@@ -693,14 +736,7 @@ int testReqBufs(struct node *node)
+ 			fail_on_test(testQueryBuf(node, i, q.g_buffers()));
+ 			if (!node->is_m2m)
+ 				fail_on_test(q2.create_bufs(node->node2, 1) != EBUSY);
+-
+-			memset(&crbufs, 0xff, sizeof(crbufs));
+-			node->g_fmt(crbufs.format, i);
+-			crbufs.count = 0;
+-			crbufs.memory = m;
+-			fail_on_test(doioctl(node, VIDIOC_CREATE_BUFS, &crbufs));
+-			fail_on_test(check_0(crbufs.reserved, sizeof(crbufs.reserved)));
+-			fail_on_test(crbufs.index != q.g_buffers());
++			q.reqbufs(node);
+ 
+ 			if (node->is_video) {
+ 				cv4l_fmt fmt;
+@@ -1176,14 +1212,22 @@ static int bufferOutputErrorTest(struct node *node, const buffer &orig_buf)
  
  static int setupMmap(struct node *node, cv4l_queue &q)
  {
@@ -255,7 +224,7 @@ index fc49fff6..b6419d27 100644
  		for (unsigned p = 0; p < buf.g_num_planes(); p++) {
  			// Try a random offset
  			fail_on_test(node->mmap(buf.g_length(p),
-@@ -1220,6 +1311,14 @@ static int setupMmap(struct node *node, cv4l_queue &q)
+@@ -1220,6 +1264,14 @@ static int setupMmap(struct node *node, cv4l_queue &q)
  			buf.s_index(buf.g_index() - VIDEO_MAX_FRAME);
  			fail_on_test(buf.g_index() != i);
  		}
@@ -270,7 +239,28 @@ index fc49fff6..b6419d27 100644
  		fail_on_test(buf.querybuf(node, i));
  		fail_on_test(buf.check(q, Queued, i));
  		fail_on_test(!buf.dqbuf(node));
-@@ -1475,11 +1574,17 @@ static int setupUserPtr(struct node *node, cv4l_queue &q)
+@@ -1240,6 +1292,8 @@ int testMmap(struct node *node, struct node *node_m2m_cap, unsigned frame_count,
+ 
+ 	buffer_info.clear();
+ 	for (type = 0; type <= V4L2_BUF_TYPE_LAST; type++) {
++		cv4l_fmt fmt;
++
+ 		if (!(node->valid_buftypes & (1 << type)))
+ 			continue;
+ 		if (v4l_type_is_overlay(type))
+@@ -1297,6 +1351,11 @@ int testMmap(struct node *node, struct node *node_m2m_cap, unsigned frame_count,
+ 		fail_on_test(q.reqbufs(node, q.g_buffers()));
+ 		fail_on_test(node->g_fmt(cur_fmt, q.g_type()));
+ 
++		q.reqbufs(node);
++		q.create_bufs(node, 2, &cur_fmt, V4L2_FLAG_MEMORY_NON_CONSISTENT);
++		fail_on_test(setupMmap(node, q));
++		q.reqbufs(node);
++
+ 		ret = q.create_bufs(node, 0);
+ 		fail_on_test(ret != ENOTTY && ret != 0);
+ 		if (ret == ENOTTY)
+@@ -1475,11 +1534,17 @@ static int setupUserPtr(struct node *node, cv4l_queue &q)
  {
  	for (unsigned i = 0; i < q.g_buffers(); i++) {
  		buffer buf(q);
@@ -288,7 +278,7 @@ index fc49fff6..b6419d27 100644
  		for (unsigned p = 0; p < buf.g_num_planes(); p++) {
  			// This should not work!
  			fail_on_test(node->mmap(buf.g_length(p), 0) != MAP_FAILED);
-@@ -1537,7 +1642,10 @@ static int setupUserPtr(struct node *node, cv4l_queue &q)
+@@ -1537,7 +1602,10 @@ static int setupUserPtr(struct node *node, cv4l_queue &q)
  			if (v4l_type_is_output(q.g_type()))
  				fail_on_test(!buf.g_bytesused(p));
  		}
@@ -300,7 +290,7 @@ index fc49fff6..b6419d27 100644
  		fail_on_test(buf.querybuf(node, i));
  		fail_on_test(buf.check(q, Queued, i));
  	}
-@@ -1732,12 +1840,17 @@ static int setupDmaBuf(struct node *expbuf_node, struct node *node,
+@@ -1732,12 +1800,17 @@ static int setupDmaBuf(struct node *expbuf_node, struct node *node,
  	fail_on_test(q.mmap_bufs(node));
  	for (unsigned i = 0; i < q.g_buffers(); i++) {
  		buffer buf(q);
@@ -318,7 +308,7 @@ index fc49fff6..b6419d27 100644
  		ret = buf.prepare_buf(node, q);
  		if (ret != ENOTTY) {
  			fail_on_test(ret);
-@@ -1757,7 +1870,11 @@ static int setupDmaBuf(struct node *expbuf_node, struct node *node,
+@@ -1757,7 +1830,11 @@ static int setupDmaBuf(struct node *expbuf_node, struct node *node,
  			if (v4l_type_is_output(q.g_type()))
  				fail_on_test(!buf.g_bytesused(p));
  		}

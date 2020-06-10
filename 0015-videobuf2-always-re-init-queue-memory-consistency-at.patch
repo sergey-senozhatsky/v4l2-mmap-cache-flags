@@ -1,0 +1,72 @@
+From 2ef57e57a38508b00e92193e665b45735e1d5a63 Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Date: Tue, 9 Jun 2020 14:49:22 +0900
+Subject: [PATCH] videobuf2: always re-init queue memory consistency attribute
+
+We need a combination of two factors in order to permit modification
+of queue's memory consistency attribute in set_queue_consistency():
+  (1) queue should allow user-space cache hints
+  (2) queue should be used for MMAP-ed I/O
+
+Therefore the code in videobuf2 core looks as follows:
+
+	q->memory = req->memory;
+	set_queue_consistency(q, consistent);
+
+This works when we do something like this (suppose that queue allows
+cache hints)
+
+	reqbufs.memory = V4L2_MEMORY_DMABUF;
+	reqbufs.flags = 0;
+	doioctl(node, VIDIOC_REQBUFS, &reqbufs);
+
+	reqbufs.memory = V4L2_MEMORY_MMAP;
+	reqbufs.flags = V4L2_FLAG_MEMORY_NON_CONSISTENT;
+	doioctl(node, VIDIOC_REQBUFS, &reqbufs);
+
+However, this doesn't work the other way around
+
+	reqbufs.memory = V4L2_MEMORY_MMAP;
+	reqbufs.flags = V4L2_FLAG_MEMORY_NON_CONSISTENT;
+	doioctl(node, VIDIOC_REQBUFS, &reqbufs);
+
+	reqbufs.memory = V4L2_MEMORY_DMABUF;
+	reqbufs.flags = 0;
+	doioctl(node, VIDIOC_REQBUFS, &reqbufs);
+
+because __vb2_queue_free() doesn't clear queue's ->dma_attrs
+once its don't freeing queue buffers, and by the time we call
+set_queue_consistency() the queue is DMABUF so (2) is false
+and we never clear the stale consistency attribute.
+
+Re-implement set_queue_consistency() - it must always clear
+queue's non-consistency attr and set it only if (1) and (2).
+
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ drivers/media/common/videobuf2/videobuf2-core.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
+index 7e081716b8da..37d0186ba330 100644
+--- a/drivers/media/common/videobuf2/videobuf2-core.c
++++ b/drivers/media/common/videobuf2/videobuf2-core.c
+@@ -704,12 +704,11 @@ EXPORT_SYMBOL(vb2_verify_memory_type);
+ 
+ static void set_queue_consistency(struct vb2_queue *q, bool consistent_mem)
+ {
++	q->dma_attrs &= ~DMA_ATTR_NON_CONSISTENT;
++
+ 	if (!vb2_queue_allows_cache_hints(q))
+ 		return;
+-
+-	if (consistent_mem)
+-		q->dma_attrs &= ~DMA_ATTR_NON_CONSISTENT;
+-	else
++	if (!consistent_mem)
+ 		q->dma_attrs |= DMA_ATTR_NON_CONSISTENT;
+ }
+ 
+-- 
+2.27.0
+
