@@ -1,0 +1,95 @@
+From 652cc94371360331dd3df98fc8de93fb7038cd8b Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
+Date: Tue, 9 Feb 2021 12:13:27 +0900
+Subject: [PATCH 3/9] videobuf2: split buffer cache_hints initialisation
+
+V4L2 is not the perfect place to manage vb2 buffer cache hints.
+It works for V4L2 users, but there are backends that use vb2 core
+and don't use V4L2. Factor buffer cache hints init and call it
+when we allocate vb2 buffer.
+
+Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+---
+ .../media/common/videobuf2/videobuf2-core.c   | 22 +++++++++++++++++++
+ .../media/common/videobuf2/videobuf2-v4l2.c   | 18 ---------------
+ 2 files changed, 22 insertions(+), 18 deletions(-)
+
+diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
+index 2906b86d2ba5..631bd3200795 100644
+--- a/drivers/media/common/videobuf2/videobuf2-core.c
++++ b/drivers/media/common/videobuf2/videobuf2-core.c
+@@ -381,6 +381,27 @@ static void __setup_offsets(struct vb2_buffer *vb)
+ 	}
+ }
+ 
++static void init_buffer_cache_hints(struct vb2_queue *q, struct vb2_buffer *vb)
++{
++	/*
++	 * DMA exporter should take care of cache syncs, so we can avoid
++	 * explicit ->prepare()/->finish() syncs. For other ->memory types
++	 * we always need ->prepare() or/and ->finish() cache sync.
++	 */
++	if (q->memory == VB2_MEMORY_DMABUF) {
++		vb->no_cache_sync_on_finish = 1;
++		vb->no_cache_sync_on_prepare = 1;
++		return;
++	}
++
++	/*
++	 * ->finish() cache sync can be avoided when queue direction is
++	 * TO_DEVICE.
++	 */
++	if (q->dma_dir == DMA_TO_DEVICE)
++		vb->no_cache_sync_on_finish = 1;
++}
++
+ /*
+  * __vb2_queue_alloc() - allocate videobuf buffer structures and (for MMAP type)
+  * video buffer memory for all buffers/planes on the queue and initializes the
+@@ -414,6 +435,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
+ 		vb->index = q->num_buffers + buffer;
+ 		vb->type = q->type;
+ 		vb->memory = memory;
++		init_buffer_cache_hints(q, vb);
+ 		for (plane = 0; plane < num_planes; ++plane) {
+ 			vb->planes[plane].length = plane_sizes[plane];
+ 			vb->planes[plane].min_length = plane_sizes[plane];
+diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
+index c51755231cce..afee19cbf5ac 100644
+--- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
++++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
+@@ -345,17 +345,6 @@ static void set_buffer_cache_hints(struct vb2_queue *q,
+ 				   struct vb2_buffer *vb,
+ 				   struct v4l2_buffer *b)
+ {
+-	/*
+-	 * DMA exporter should take care of cache syncs, so we can avoid
+-	 * explicit ->prepare()/->finish() syncs. For other ->memory types
+-	 * we always need ->prepare() or/and ->finish() cache sync.
+-	 */
+-	if (q->memory == VB2_MEMORY_DMABUF) {
+-		vb->no_cache_sync_on_finish = 1;
+-		vb->no_cache_sync_on_prepare = 1;
+-		return;
+-	}
+-
+ 	if (!vb2_queue_allows_cache_hints(q)) {
+ 		/*
+ 		 * Clear buffer cache flags if queue does not support user
+@@ -367,13 +356,6 @@ static void set_buffer_cache_hints(struct vb2_queue *q,
+ 		return;
+ 	}
+ 
+-	/*
+-	 * ->finish() cache sync can be avoided when queue direction is
+-	 * TO_DEVICE.
+-	 */
+-	if (q->dma_dir == DMA_TO_DEVICE)
+-		vb->no_cache_sync_on_finish = 1;
+-
+ 	if (b->flags & V4L2_BUF_FLAG_NO_CACHE_INVALIDATE)
+ 		vb->no_cache_sync_on_finish = 1;
+ 
+-- 
+2.30.1
+

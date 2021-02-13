@@ -1,0 +1,119 @@
+From a53c2c0cc1caaedd346530108e095db7155fc14a Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
+Date: Tue, 9 Feb 2021 13:20:06 +0900
+Subject: [PATCH 6/9] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+
+By setting or clearing V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+user-space should be able to hint vb2 that either a non-coherent
+(if supported) or coherent memory should be used for the buffer
+allocation.
+
+The patch set also adds a corresponding capability flag:
+fill_buf_caps() reports V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
+when queue supports user-space cache management hints.
+
+Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+---
+ .../userspace-api/media/v4l/buffer.rst        | 71 +++++++++----------
+ 1 file changed, 35 insertions(+), 36 deletions(-)
+
+diff --git a/Documentation/userspace-api/media/v4l/buffer.rst b/Documentation/userspace-api/media/v4l/buffer.rst
+index 4037da0a37fe..5485e52d6ef8 100644
+--- a/Documentation/userspace-api/media/v4l/buffer.rst
++++ b/Documentation/userspace-api/media/v4l/buffer.rst
+@@ -676,10 +676,33 @@ Buffer Flags
+ 
+     \normalsize
+ 
++enum v4l2_memory
++================
++
++.. tabularcolumns:: |p{5.0cm}|p{0.8cm}|p{11.7cm}|
++
++.. flat-table::
++    :header-rows:  0
++    :stub-columns: 0
++    :widths:       3 1 4
++
++    * - ``V4L2_MEMORY_MMAP``
++      - 1
++      - The buffer is used for :ref:`memory mapping <mmap>` I/O.
++    * - ``V4L2_MEMORY_USERPTR``
++      - 2
++      - The buffer is used for :ref:`user pointer <userp>` I/O.
++    * - ``V4L2_MEMORY_OVERLAY``
++      - 3
++      - [to do]
++    * - ``V4L2_MEMORY_DMABUF``
++      - 4
++      - The buffer is used for :ref:`DMA shared buffer <dmabuf>` I/O.
++
+ .. _memory-flags:
+ 
+ Memory Consistency Flags
+-========================
++------------------------
+ 
+ .. raw:: latex
+ 
+@@ -699,46 +722,22 @@ Memory Consistency Flags
+       - ``V4L2_FLAG_MEMORY_NON_CONSISTENT``
+       - 0x00000001
+       - A buffer is allocated either in consistent (it will be automatically
+-       coherent between the CPU and the bus) or non-consistent memory. The
+-       latter can provide performance gains, for instance the CPU cache
+-       sync/flush operations can be avoided if the buffer is accessed by the
+-       corresponding device only and the CPU does not read/write to/from that
+-       buffer. However, this requires extra care from the driver -- it must
+-       guarantee memory consistency by issuing a cache flush/sync when
+-       consistency is needed. If this flag is set V4L2 will attempt to
+-       allocate the buffer in non-consistent memory. The flag takes effect
+-       only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
+-       queue reports the :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
+-       <V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
++	coherent between the CPU and the bus) or non-consistent memory. The
++	latter can provide performance gains, for instance the CPU cache
++	sync/flush operations can be avoided if the buffer is accessed by the
++	corresponding device only and the CPU does not read/write to/from that
++	buffer. However, this requires extra care from the driver -- it must
++	guarantee memory consistency by issuing a cache flush/sync when
++	consistency is needed. If this flag is set V4L2 will attempt to
++	allocate the buffer in non-consistent memory. The flag takes effect
++	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
++	queue reports the :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
++	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
+ 
+ .. raw:: latex
+ 
+     \normalsize
+ 
+-enum v4l2_memory
+-================
+-
+-.. tabularcolumns:: |p{5.0cm}|p{0.8cm}|p{11.7cm}|
+-
+-.. flat-table::
+-    :header-rows:  0
+-    :stub-columns: 0
+-    :widths:       3 1 4
+-
+-    * - ``V4L2_MEMORY_MMAP``
+-      - 1
+-      - The buffer is used for :ref:`memory mapping <mmap>` I/O.
+-    * - ``V4L2_MEMORY_USERPTR``
+-      - 2
+-      - The buffer is used for :ref:`user pointer <userp>` I/O.
+-    * - ``V4L2_MEMORY_OVERLAY``
+-      - 3
+-      - [to do]
+-    * - ``V4L2_MEMORY_DMABUF``
+-      - 4
+-      - The buffer is used for :ref:`DMA shared buffer <dmabuf>` I/O.
+-
+-
+ Timecodes
+ =========
+ 
+-- 
+2.30.1
+

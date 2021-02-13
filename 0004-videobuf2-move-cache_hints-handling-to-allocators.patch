@@ -1,0 +1,126 @@
+From fbfade84d6d33e7dd64ee8b2492b954e8eb855f9 Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
+Date: Tue, 9 Feb 2021 12:30:43 +0900
+Subject: [PATCH 4/9] videobuf2: move cache_hints handling to allocators
+
+This moves cache hints handling from videobuf2 core down
+to allocators level, because allocators do the sync/flush
+caches eventually and may take better decisions. Besides,
+allocators already decide whether cache sync/flush should
+be done or can be skipped. This patch moves the scattered
+buffer cache sync logic to one common place.
+
+Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+---
+ drivers/media/common/videobuf2/videobuf2-core.c       | 6 ------
+ drivers/media/common/videobuf2/videobuf2-dma-contig.c | 8 ++++++++
+ drivers/media/common/videobuf2/videobuf2-dma-sg.c     | 8 ++++++++
+ 3 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
+index 631bd3200795..99d1656ae18d 100644
+--- a/drivers/media/common/videobuf2/videobuf2-core.c
++++ b/drivers/media/common/videobuf2/videobuf2-core.c
+@@ -327,9 +327,6 @@ static void __vb2_buf_mem_prepare(struct vb2_buffer *vb)
+ 		return;
+ 
+ 	vb->synced = 1;
+-	if (vb->no_cache_sync_on_prepare)
+-		return;
+-
+ 	for (plane = 0; plane < vb->num_planes; ++plane)
+ 		call_void_memop(vb, prepare, vb->planes[plane].mem_priv);
+ }
+@@ -346,9 +343,6 @@ static void __vb2_buf_mem_finish(struct vb2_buffer *vb)
+ 		return;
+ 
+ 	vb->synced = 0;
+-	if (vb->no_cache_sync_on_finish)
+-		return;
+-
+ 	for (plane = 0; plane < vb->num_planes; ++plane)
+ 		call_void_memop(vb, finish, vb->planes[plane].mem_priv);
+ }
+diff --git a/drivers/media/common/videobuf2/videobuf2-dma-contig.c b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
+index 43d72a5ac101..9ad6d890b85a 100644
+--- a/drivers/media/common/videobuf2/videobuf2-dma-contig.c
++++ b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
+@@ -40,6 +40,7 @@ struct vb2_dc_buf {
+ 
+ 	/* DMABUF related */
+ 	struct dma_buf_attachment	*db_attach;
++	struct vb2_buffer		*vb;
+ };
+ 
+ /*********************************************/
+@@ -99,6 +100,9 @@ static void vb2_dc_prepare(void *buf_priv)
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	struct sg_table *sgt = buf->dma_sgt;
+ 
++	if (buf->vb->no_cache_sync_on_prepare)
++		return;
++
+ 	if (!sgt)
+ 		return;
+ 
+@@ -110,6 +114,9 @@ static void vb2_dc_finish(void *buf_priv)
+ 	struct vb2_dc_buf *buf = buf_priv;
+ 	struct sg_table *sgt = buf->dma_sgt;
+ 
++	if (buf->vb->no_cache_sync_on_finish)
++		return;
++
+ 	if (!sgt)
+ 		return;
+ 
+@@ -171,6 +178,7 @@ static void *vb2_dc_alloc(struct vb2_buffer *vb,
+ 	buf->handler.refcount = &buf->refcount;
+ 	buf->handler.put = vb2_dc_put;
+ 	buf->handler.arg = buf;
++	buf->vb = vb;
+ 
+ 	refcount_set(&buf->refcount, 1);
+ 
+diff --git a/drivers/media/common/videobuf2/videobuf2-dma-sg.c b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+index c3b8a7dd3fdd..e457ea391428 100644
+--- a/drivers/media/common/videobuf2/videobuf2-dma-sg.c
++++ b/drivers/media/common/videobuf2/videobuf2-dma-sg.c
+@@ -51,6 +51,7 @@ struct vb2_dma_sg_buf {
+ 	struct vb2_vmarea_handler	handler;
+ 
+ 	struct dma_buf_attachment	*db_attach;
++	struct vb2_buffer		*vb;
+ };
+ 
+ static void vb2_dma_sg_put(void *buf_priv);
+@@ -153,6 +154,7 @@ static void *vb2_dma_sg_alloc(struct vb2_buffer *vb, struct device *dev,
+ 	buf->handler.refcount = &buf->refcount;
+ 	buf->handler.put = vb2_dma_sg_put;
+ 	buf->handler.arg = buf;
++	buf->vb = vb;
+ 
+ 	refcount_set(&buf->refcount, 1);
+ 
+@@ -201,6 +203,9 @@ static void vb2_dma_sg_prepare(void *buf_priv)
+ 	struct vb2_dma_sg_buf *buf = buf_priv;
+ 	struct sg_table *sgt = buf->dma_sgt;
+ 
++	if (buf->vb->no_cache_sync_on_prepare)
++		return;
++
+ 	dma_sync_sgtable_for_device(buf->dev, sgt, buf->dma_dir);
+ }
+ 
+@@ -209,6 +214,9 @@ static void vb2_dma_sg_finish(void *buf_priv)
+ 	struct vb2_dma_sg_buf *buf = buf_priv;
+ 	struct sg_table *sgt = buf->dma_sgt;
+ 
++	if (buf->vb->no_cache_sync_on_finish)
++		return;
++
+ 	dma_sync_sgtable_for_cpu(buf->dev, sgt, buf->dma_dir);
+ }
+ 
+-- 
+2.30.1
+
