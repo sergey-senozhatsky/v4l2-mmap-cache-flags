@@ -1,5 +1,5 @@
-From e6dc4b251da064e7c3320dbfd9aded72a85a6fe6 Mon Sep 17 00:00:00 2001
-From: "Signed-off-by: Sergey Senozhatsky" <senozhatsky@chromium.org>
+From df5e36151e9207fdd670b15f9ee5e9d7ce70b04b Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Sat, 13 Feb 2021 13:07:55 +0900
 Subject: [PATCH] v4l-compliance: re-introduce remove NON_CONSISTENT hint test
 
