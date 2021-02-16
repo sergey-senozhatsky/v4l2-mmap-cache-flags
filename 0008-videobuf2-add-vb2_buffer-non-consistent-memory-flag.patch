@@ -1,0 +1,53 @@
+From d76bf8d47852efa9003a572e404651ecea6781fe Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
+Date: Tue, 16 Feb 2021 13:43:29 +0900
+Subject: [PATCH 8/9] videobuf2: add vb2_buffer non-consistent memory flag
+
+Add non_consistent_mem flag to vb2_buffer structure - we need to
+pass this information to the allocator. A similar vb2_queue flag
+serves a different purpose and cannot be reliably checked in
+buffers' ->preapre()/->finish() functions.
+
+Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+---
+ drivers/media/common/videobuf2/videobuf2-core.c | 1 +
+ include/media/videobuf2-core.h                  | 4 ++++
+ 2 files changed, 5 insertions(+)
+
+diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
+index 182791908a6d..2179d4894dbe 100644
+--- a/drivers/media/common/videobuf2/videobuf2-core.c
++++ b/drivers/media/common/videobuf2/videobuf2-core.c
+@@ -429,6 +429,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
+ 		vb->index = q->num_buffers + buffer;
+ 		vb->type = q->type;
+ 		vb->memory = memory;
++		vb->non_consistent_mem = q->non_consistent_mem;
+ 		init_buffer_cache_hints(q, vb);
+ 		for (plane = 0; plane < num_planes; ++plane) {
+ 			vb->planes[plane].length = plane_sizes[plane];
+diff --git a/include/media/videobuf2-core.h b/include/media/videobuf2-core.h
+index 73a0e90dbdb7..2956864f20ef 100644
+--- a/include/media/videobuf2-core.h
++++ b/include/media/videobuf2-core.h
+@@ -269,6 +269,9 @@ struct vb2_buffer {
+ 	 *			skips cache sync/invalidation.
+ 	 * no_cache_sync_on_finish: when set buffer's ->finish() function
+ 	 *			skips cache sync/invalidation.
++	 * non_consistent_mem:	when set allocator uses non-coherent
++	 *			(non contiguous) memory for the buffer.
++	 *			skips cache sync/invalidation.
+ 	 * queued_entry:	entry on the queued buffers list, which holds
+ 	 *			all buffers queued from userspace
+ 	 * done_entry:		entry on the list that stores all buffers ready
+@@ -281,6 +284,7 @@ struct vb2_buffer {
+ 	unsigned int		copied_timestamp:1;
+ 	unsigned int		no_cache_sync_on_prepare:1;
+ 	unsigned int		no_cache_sync_on_finish:1;
++	unsigned int		non_consistent_mem:1;
+ 
+ 	struct vb2_plane	planes[VB2_MAX_PLANES];
+ 	struct list_head	queued_entry;
+-- 
+2.30.1
+
