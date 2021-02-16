@@ -1,13 +1,11 @@
-From be96ce1d6ada2fe196ba636859b81ed58b7b29f2 Mon Sep 17 00:00:00 2001
+From 109d37d29a5486d19181b1f081be5a037abd8832 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Sat, 13 Feb 2021 13:17:28 +0900
 Subject: [PATCH 8/8] videobuf2: handle non-contiguous DMA allocations
 
-This adds support for new DMA API. New DMA API requires allocators
-to have two execution branches: one for the current API, and one for
-the new DMA API, which depends on
-	a) dma_can_alloc_noncontiguous() support
-	b) user-space non-coherent allocation request
+This adds support for new noncontiguous DMA API, which
+requires allocators to have two execution branches: one
+for the current API, and one for the new one.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 [hch: untested conversion to the ne API]
