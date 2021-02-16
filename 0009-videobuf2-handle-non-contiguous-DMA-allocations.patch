@@ -1,4 +1,4 @@
-From 3d61f27c154f0a2d00b112671206abeb4bf8aebb Mon Sep 17 00:00:00 2001
+From d7646c9bc97e3d4eab205e010dde83ca626a7529 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 16 Feb 2021 13:49:21 +0900
 Subject: [PATCH 9/9] videobuf2: handle non-contiguous DMA allocations
@@ -11,11 +11,11 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 [hch: untested conversion to the ne API]
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- .../common/videobuf2/videobuf2-dma-contig.c   | 143 +++++++++++++++---
- 1 file changed, 119 insertions(+), 24 deletions(-)
+ .../common/videobuf2/videobuf2-dma-contig.c   | 137 +++++++++++++++---
+ 1 file changed, 113 insertions(+), 24 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-dma-contig.c b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
-index 9ad6d890b85a..0deb392fed0d 100644
+index 9ad6d890b85a..33b3669ee8df 100644
 --- a/drivers/media/common/videobuf2/videobuf2-dma-contig.c
 +++ b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
 @@ -17,6 +17,7 @@
@@ -46,7 +46,7 @@ index 9ad6d890b85a..0deb392fed0d 100644
  /*********************************************/
  /*        scatterlist table functions        */
  /*********************************************/
-@@ -77,12 +91,18 @@ static void *vb2_dc_cookie(void *buf_priv)
+@@ -77,12 +91,12 @@ static void *vb2_dc_cookie(void *buf_priv)
  static void *vb2_dc_vaddr(void *buf_priv)
  {
  	struct vb2_dc_buf *buf = buf_priv;
@@ -56,20 +56,14 @@ index 9ad6d890b85a..0deb392fed0d 100644
  	if (!buf->vaddr && buf->db_attach) {
 -		ret = dma_buf_vmap(buf->db_attach->dmabuf, &map);
 -		buf->vaddr = ret ? NULL : map.vaddr;
-+		if (vb2_is_coherent(buf)) {
-+			struct dma_buf_map map;
++		struct dma_buf_map map;
 +
-+			if (!dma_buf_vmap(buf->db_attach->dmabuf, &map))
-+				buf->vaddr = map.vaddr;
-+		} else {
-+			buf->vaddr = dma_vmap_noncontiguous(buf->dev,
-+							    buf->size,
-+							    buf->dma_sgt);
-+		}
++		if (!dma_buf_vmap(buf->db_attach->dmabuf, &map))
++			buf->vaddr = map.vaddr;
  	}
  
  	return buf->vaddr;
-@@ -100,13 +120,23 @@ static void vb2_dc_prepare(void *buf_priv)
+@@ -100,13 +114,23 @@ static void vb2_dc_prepare(void *buf_priv)
  	struct vb2_dc_buf *buf = buf_priv;
  	struct sg_table *sgt = buf->dma_sgt;
  
@@ -93,7 +87,7 @@ index 9ad6d890b85a..0deb392fed0d 100644
  }
  
  static void vb2_dc_finish(void *buf_priv)
-@@ -114,19 +144,43 @@ static void vb2_dc_finish(void *buf_priv)
+@@ -114,19 +138,43 @@ static void vb2_dc_finish(void *buf_priv)
  	struct vb2_dc_buf *buf = buf_priv;
  	struct sg_table *sgt = buf->dma_sgt;
  
@@ -137,7 +131,7 @@ index 9ad6d890b85a..0deb392fed0d 100644
  static void vb2_dc_put(void *buf_priv)
  {
  	struct vb2_dc_buf *buf = buf_priv;
-@@ -138,12 +192,52 @@ static void vb2_dc_put(void *buf_priv)
+@@ -138,12 +186,52 @@ static void vb2_dc_put(void *buf_priv)
  		sg_free_table(buf->sgt_base);
  		kfree(buf->sgt_base);
  	}
@@ -192,7 +186,7 @@ index 9ad6d890b85a..0deb392fed0d 100644
  static void *vb2_dc_alloc(struct vb2_buffer *vb,
  			  struct device *dev,
  			  unsigned long size)
-@@ -158,27 +252,22 @@ static void *vb2_dc_alloc(struct vb2_buffer *vb,
+@@ -158,27 +246,22 @@ static void *vb2_dc_alloc(struct vb2_buffer *vb,
  		return ERR_PTR(-ENOMEM);
  
  	buf->attrs = vb->vb2_queue->dma_attrs;
@@ -229,7 +223,7 @@ index 9ad6d890b85a..0deb392fed0d 100644
  
  	refcount_set(&buf->refcount, 1);
  
-@@ -195,9 +284,12 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
+@@ -195,9 +278,12 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
  		return -EINVAL;
  	}
  
@@ -245,7 +239,7 @@ index 9ad6d890b85a..0deb392fed0d 100644
  	if (ret) {
  		pr_err("Remapping memory failed, error: %d\n", ret);
  		return ret;
-@@ -389,6 +481,9 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
+@@ -389,6 +475,9 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
  	int ret;
  	struct sg_table *sgt;
  
@@ -255,7 +249,7 @@ index 9ad6d890b85a..0deb392fed0d 100644
  	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
  	if (!sgt) {
  		dev_err(buf->dev, "failed to alloc sg table\n");
-@@ -396,7 +491,7 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
+@@ -396,7 +485,7 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
  	}
  
  	ret = dma_get_sgtable_attrs(buf->dev, sgt, buf->cookie, buf->dma_addr,
