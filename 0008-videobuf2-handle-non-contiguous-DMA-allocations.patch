@@ -1,4 +1,4 @@
-From 109d37d29a5486d19181b1f081be5a037abd8832 Mon Sep 17 00:00:00 2001
+From 0fbfbcc45b065a1bad7c0e96a95a166766d07f6e Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Sat, 13 Feb 2021 13:17:28 +0900
 Subject: [PATCH 8/8] videobuf2: handle non-contiguous DMA allocations
@@ -11,14 +11,22 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 [hch: untested conversion to the ne API]
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- .../common/videobuf2/videobuf2-dma-contig.c   | 138 +++++++++++++++---
- 1 file changed, 114 insertions(+), 24 deletions(-)
+ .../common/videobuf2/videobuf2-dma-contig.c   | 147 +++++++++++++++---
+ 1 file changed, 123 insertions(+), 24 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-dma-contig.c b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
-index 9ad6d890b85a..cca89525edb4 100644
+index 9ad6d890b85a..41ad66f875e6 100644
 --- a/drivers/media/common/videobuf2/videobuf2-dma-contig.c
 +++ b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
-@@ -41,8 +41,22 @@ struct vb2_dc_buf {
+@@ -17,6 +17,7 @@
+ #include <linux/sched.h>
+ #include <linux/slab.h>
+ #include <linux/dma-mapping.h>
++#include <linux/highmem.h>
+ 
+ #include <media/videobuf2-v4l2.h>
+ #include <media/videobuf2-dma-contig.h>
+@@ -41,8 +42,22 @@ struct vb2_dc_buf {
  	/* DMABUF related */
  	struct dma_buf_attachment	*db_attach;
  	struct vb2_buffer		*vb;
@@ -41,7 +49,7 @@ index 9ad6d890b85a..cca89525edb4 100644
  /*********************************************/
  /*        scatterlist table functions        */
  /*********************************************/
-@@ -77,12 +91,18 @@ static void *vb2_dc_cookie(void *buf_priv)
+@@ -77,12 +92,18 @@ static void *vb2_dc_cookie(void *buf_priv)
  static void *vb2_dc_vaddr(void *buf_priv)
  {
  	struct vb2_dc_buf *buf = buf_priv;
@@ -64,7 +72,7 @@ index 9ad6d890b85a..cca89525edb4 100644
  	}
  
  	return buf->vaddr;
-@@ -100,9 +120,15 @@ static void vb2_dc_prepare(void *buf_priv)
+@@ -100,13 +121,23 @@ static void vb2_dc_prepare(void *buf_priv)
  	struct vb2_dc_buf *buf = buf_priv;
  	struct sg_table *sgt = buf->dma_sgt;
  
@@ -80,7 +88,15 @@ index 9ad6d890b85a..cca89525edb4 100644
  	if (!sgt)
  		return;
  
-@@ -114,9 +140,15 @@ static void vb2_dc_finish(void *buf_priv)
+ 	dma_sync_sgtable_for_device(buf->dev, sgt, buf->dma_dir);
++
++	/* Mapped noncontiguous DMA buffers must be flushed/invalidated */
++	if (!vb2_is_coherent(buf) && buf->vaddr)
++		flush_kernel_vmap_range(buf->vaddr, buf->size);
+ }
+ 
+ static void vb2_dc_finish(void *buf_priv)
+@@ -114,19 +145,45 @@ static void vb2_dc_finish(void *buf_priv)
  	struct vb2_dc_buf *buf = buf_priv;
  	struct sg_table *sgt = buf->dma_sgt;
  
@@ -96,7 +112,14 @@ index 9ad6d890b85a..cca89525edb4 100644
  	if (!sgt)
  		return;
  
-@@ -127,6 +159,22 @@ static void vb2_dc_finish(void *buf_priv)
+ 	dma_sync_sgtable_for_cpu(buf->dev, sgt, buf->dma_dir);
++
++	/* Mapped noncontiguous DMA buffers must be flushed/invalidated */
++	if (!vb2_is_coherent(buf) && buf->vaddr)
++		invalidate_kernel_vmap_range(buf->vaddr, buf->size);
+ }
+ 
+ /*********************************************/
  /*        callbacks for MMAP buffers         */
  /*********************************************/
  
@@ -119,7 +142,7 @@ index 9ad6d890b85a..cca89525edb4 100644
  static void vb2_dc_put(void *buf_priv)
  {
  	struct vb2_dc_buf *buf = buf_priv;
-@@ -138,12 +186,53 @@ static void vb2_dc_put(void *buf_priv)
+@@ -138,12 +195,53 @@ static void vb2_dc_put(void *buf_priv)
  		sg_free_table(buf->sgt_base);
  		kfree(buf->sgt_base);
  	}
@@ -175,7 +198,7 @@ index 9ad6d890b85a..cca89525edb4 100644
  static void *vb2_dc_alloc(struct vb2_buffer *vb,
  			  struct device *dev,
  			  unsigned long size)
-@@ -158,27 +247,22 @@ static void *vb2_dc_alloc(struct vb2_buffer *vb,
+@@ -158,27 +256,22 @@ static void *vb2_dc_alloc(struct vb2_buffer *vb,
  		return ERR_PTR(-ENOMEM);
  
  	buf->attrs = vb->vb2_queue->dma_attrs;
@@ -212,7 +235,7 @@ index 9ad6d890b85a..cca89525edb4 100644
  
  	refcount_set(&buf->refcount, 1);
  
-@@ -195,9 +279,12 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
+@@ -195,9 +288,12 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
  		return -EINVAL;
  	}
  
@@ -228,7 +251,7 @@ index 9ad6d890b85a..cca89525edb4 100644
  	if (ret) {
  		pr_err("Remapping memory failed, error: %d\n", ret);
  		return ret;
-@@ -389,6 +476,9 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
+@@ -389,6 +485,9 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
  	int ret;
  	struct sg_table *sgt;
  
@@ -238,7 +261,7 @@ index 9ad6d890b85a..cca89525edb4 100644
  	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
  	if (!sgt) {
  		dev_err(buf->dev, "failed to alloc sg table\n");
-@@ -396,7 +486,7 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
+@@ -396,7 +495,7 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
  	}
  
  	ret = dma_get_sgtable_attrs(buf->dev, sgt, buf->cookie, buf->dma_addr,
