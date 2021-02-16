@@ -1,7 +1,7 @@
 From ce298010d2f2869f9c2d3af15a88d17bb8ff6c1e Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 9 Feb 2021 12:11:02 +0900
-Subject: [PATCH 2/8] videobuf2: inverse buffer cache_hints flags
+Subject: [PATCH 2/9] videobuf2: inverse buffer cache_hints flags
 
 It would be less error prone if the default cache hints value
 (we kzalloc() structs, so it's zeroed out by default) would be

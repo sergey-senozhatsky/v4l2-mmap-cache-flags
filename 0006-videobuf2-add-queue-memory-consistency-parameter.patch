@@ -1,7 +1,7 @@
 From 843486b12e13afabfe94c4dbef84fddc80a89e29 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 9 Feb 2021 13:20:47 +0900
-Subject: [PATCH 6/8] videobuf2: add queue memory consistency parameter
+Subject: [PATCH 6/9] videobuf2: add queue memory consistency parameter
 
 Preparations for future V4L2_FLAG_MEMORY_NON_CONSISTENT support.
 

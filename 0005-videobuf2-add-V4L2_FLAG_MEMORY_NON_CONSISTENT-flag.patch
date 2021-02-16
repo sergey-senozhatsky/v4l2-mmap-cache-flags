@@ -1,7 +1,7 @@
 From 6a44b22a3c3c492682b73b789ee5f7a474a975e5 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 9 Feb 2021 12:36:10 +0900
-Subject: [PATCH 5/8] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+Subject: [PATCH 5/9] videobuf2: add V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 
 By setting or clearing V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 user-space should be able to hint vb2 that either a non-coherent

@@ -1,7 +1,7 @@
 From ee5f7fe2a8c8e30a8c41253eaebefa1419ae05df Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 9 Feb 2021 12:07:51 +0900
-Subject: [PATCH 1/8] videobuf2: rework vb2_mem_ops API
+Subject: [PATCH 1/9] videobuf2: rework vb2_mem_ops API
 
 With new DMA API we need an extension of videobuf2 API. Previously,
 videobuf2 core would set non-coherent DMA bit in vb2 queue dma_attr

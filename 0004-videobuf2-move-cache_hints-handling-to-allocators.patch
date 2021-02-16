@@ -1,7 +1,7 @@
 From b542978a4878850983a8e0582a5bebc9fbe39734 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 9 Feb 2021 12:30:43 +0900
-Subject: [PATCH 4/8] videobuf2: move cache_hints handling to allocators
+Subject: [PATCH 4/9] videobuf2: move cache_hints handling to allocators
 
 This moves cache hints handling from videobuf2 core down
 to allocators level, because allocators do the sync/flush

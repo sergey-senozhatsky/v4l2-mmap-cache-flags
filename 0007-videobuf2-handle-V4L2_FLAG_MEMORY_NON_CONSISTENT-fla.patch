@@ -1,7 +1,7 @@
 From 47346ff20d4ae7c42735d06506358bfe8ab2814d Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 9 Feb 2021 13:21:40 +0900
-Subject: [PATCH 7/8] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
+Subject: [PATCH 7/9] videobuf2: handle V4L2_FLAG_MEMORY_NON_CONSISTENT flag
 
 This patch lets user-space to request a non-consistent memory
 allocation during CREATE_BUFS and REQBUFS ioctl calls.
