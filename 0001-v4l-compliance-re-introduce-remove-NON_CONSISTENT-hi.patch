@@ -1,17 +1,17 @@
-From df5e36151e9207fdd670b15f9ee5e9d7ce70b04b Mon Sep 17 00:00:00 2001
-From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Sat, 13 Feb 2021 13:07:55 +0900
+From a8d87334dc5712ba197bfa8a1cd9754bf95758b8 Mon Sep 17 00:00:00 2001
+From: Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 Subject: [PATCH] v4l-compliance: re-introduce remove NON_CONSISTENT hint test
 
 This returns back NON_CONSISTENT memory flag and buffer cache management
 hints testing (for VB2_MEMORY_MMAP buffers).
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+
 ---
- utils/common/cv4l-helpers.h                 |  8 +--
- utils/common/v4l-helpers.h                  |  8 ++-
- utils/v4l2-compliance/v4l2-test-buffers.cpp | 65 ++++++++++++++++++---
- 3 files changed, 66 insertions(+), 15 deletions(-)
+ utils/common/cv4l-helpers.h                 |  8 ++---
+ utils/common/v4l-helpers.h                  |  8 +++--
+ utils/v4l2-compliance/v4l2-test-buffers.cpp | 40 +++++++++++++++++++--
+ 3 files changed, 47 insertions(+), 9 deletions(-)
 
 diff --git a/utils/common/cv4l-helpers.h b/utils/common/cv4l-helpers.h
 index 712efde6..3cee372b 100644
@@ -87,7 +87,7 @@ index f96b3c38..c09cd987 100644
  
  static inline void v4l_queue_buffer_update(const struct v4l_queue *q,
 diff --git a/utils/v4l2-compliance/v4l2-test-buffers.cpp b/utils/v4l2-compliance/v4l2-test-buffers.cpp
-index e40461bd..e16637e7 100644
+index e40461bd..21a5139a 100644
 --- a/utils/v4l2-compliance/v4l2-test-buffers.cpp
 +++ b/utils/v4l2-compliance/v4l2-test-buffers.cpp
 @@ -663,6 +663,10 @@ int testReqBufs(struct node *node)
@@ -153,46 +153,7 @@ index e40461bd..e16637e7 100644
  			q.reqbufs(node);
  
  			fail_on_test(q.create_bufs(node, 1));
-@@ -1207,10 +1243,16 @@ static int setupMmap(struct node *node, cv4l_queue &q)
- 		fail_on_test(buf.querybuf(node, i));
- 		fail_on_test(buf.check(q, Unqueued, i));
- 
--		flags = buf.g_flags();
--		flags |= V4L2_BUF_FLAG_NO_CACHE_INVALIDATE;
--		flags |= V4L2_BUF_FLAG_NO_CACHE_CLEAN;
--		buf.s_flags(flags);
-+		/*
-+		 * Do not set cache hints for all the buffers, but only on
-+		 * some of them, so that we can test more cases.
-+		 */
-+		if (i == 0) {
-+			flags = buf.g_flags();
-+			flags |= V4L2_BUF_FLAG_NO_CACHE_INVALIDATE;
-+			flags |= V4L2_BUF_FLAG_NO_CACHE_CLEAN;
-+			buf.s_flags(flags);
-+		}
- 
- 		for (unsigned p = 0; p < buf.g_num_planes(); p++) {
- 			// Try a random offset
-@@ -1250,8 +1292,15 @@ static int setupMmap(struct node *node, cv4l_queue &q)
- 		}
- 		flags = buf.g_flags();
- 		if (cache_hints) {
--			fail_on_test(!(flags & V4L2_BUF_FLAG_NO_CACHE_INVALIDATE));
--			fail_on_test(!(flags & V4L2_BUF_FLAG_NO_CACHE_CLEAN));
-+			if (i == 0) {
-+				/* We do expect cache hints on this buffer */
-+				fail_on_test(!(flags & V4L2_BUF_FLAG_NO_CACHE_INVALIDATE));
-+				fail_on_test(!(flags & V4L2_BUF_FLAG_NO_CACHE_CLEAN));
-+			} else {
-+				/* We expect no cache hints on this buffer */
-+				fail_on_test(flags & V4L2_BUF_FLAG_NO_CACHE_INVALIDATE);
-+				fail_on_test(flags & V4L2_BUF_FLAG_NO_CACHE_CLEAN);
-+			}
- 		} else if (node->might_support_cache_hints) {
- 			fail_on_test(flags & V4L2_BUF_FLAG_NO_CACHE_INVALIDATE);
- 			fail_on_test(flags & V4L2_BUF_FLAG_NO_CACHE_CLEAN);
-@@ -1341,7 +1390,7 @@ int testMmap(struct node *node, struct node *node_m2m_cap, unsigned frame_count,
+@@ -1341,7 +1377,7 @@ int testMmap(struct node *node, struct node *node_m2m_cap, unsigned frame_count,
  			have_createbufs = false;
  		if (have_createbufs) {
  			q.reqbufs(node);

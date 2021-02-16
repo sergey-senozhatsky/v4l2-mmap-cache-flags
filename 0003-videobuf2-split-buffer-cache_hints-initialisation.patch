@@ -1,7 +1,7 @@
-From 652cc94371360331dd3df98fc8de93fb7038cd8b Mon Sep 17 00:00:00 2001
+From 1774ee784e096f5f4b1f6f47d67a758435cf9dc7 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
 Date: Tue, 9 Feb 2021 12:13:27 +0900
-Subject: [PATCH 3/9] videobuf2: split buffer cache_hints initialisation
+Subject: [PATCH 3/8] videobuf2: split buffer cache_hints initialisation
 
 V4L2 is not the perfect place to manage vb2 buffer cache hints.
 It works for V4L2 users, but there are backends that use vb2 core
