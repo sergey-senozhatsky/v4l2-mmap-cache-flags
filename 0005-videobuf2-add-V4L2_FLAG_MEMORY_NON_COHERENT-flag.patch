@@ -1,0 +1,111 @@
+From e7b15f6f3d5f40e032143d53a91b5533ab271a50 Mon Sep 17 00:00:00 2001
+From: Sergey Senozhatsky <senozhatsky@chromium.org>
+Date: Sun, 28 Feb 2021 16:02:57 +0900
+Subject: [PATCH 5/8] videobuf2: add V4L2_FLAG_MEMORY_NON_COHERENT flag
+
+By setting or clearing V4L2_FLAG_MEMORY_NON_COHERENT flag
+user-space should be able to hint vb2 that either a non-coherent
+(if supported) or coherent memory should be used for the buffer
+allocation.
+
+The patch set also adds a corresponding capability flag:
+fill_buf_caps() reports V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
+when queue supports user-space cache management hints.
+
+Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
+---
+ .../userspace-api/media/v4l/buffer.rst        | 40 ++++++++++++++++++-
+ .../media/v4l/vidioc-reqbufs.rst              |  5 ++-
+ include/uapi/linux/videodev2.h                |  2 +
+ 3 files changed, 43 insertions(+), 4 deletions(-)
+
+diff --git a/Documentation/userspace-api/media/v4l/buffer.rst b/Documentation/userspace-api/media/v4l/buffer.rst
+index 1b0fdc160533..a39852d6174f 100644
+--- a/Documentation/userspace-api/media/v4l/buffer.rst
++++ b/Documentation/userspace-api/media/v4l/buffer.rst
+@@ -676,8 +676,6 @@ Buffer Flags
+ 
+     \normalsize
+ 
+-.. _memory-flags:
+-
+ enum v4l2_memory
+ ================
+ 
+@@ -701,6 +699,44 @@ enum v4l2_memory
+       - 4
+       - The buffer is used for :ref:`DMA shared buffer <dmabuf>` I/O.
+ 
++.. _memory-flags:
++
++Memory Consistency Flags
++------------------------
++
++.. raw:: latex
++
++    \small
++
++.. tabularcolumns:: |p{7.0cm}|p{2.1cm}|p{8.4cm}|
++
++.. cssclass:: longtable
++
++.. flat-table::
++    :header-rows:  0
++    :stub-columns: 0
++    :widths:       3 1 4
++
++    * .. _`V4L2-FLAG-MEMORY-NON-COHERENT`:
++
++      - ``V4L2_FLAG_MEMORY_NON_COHERENT``
++      - 0x00000001
++      - A buffer is allocated either in coherent (it will be automatically
++	coherent between the CPU and the bus) or non-coherent memory. The
++	latter can provide performance gains, for instance the CPU cache
++	sync/flush operations can be avoided if the buffer is accessed by the
++	corresponding device only and the CPU does not read/write to/from that
++	buffer. However, this requires extra care from the driver -- it must
++	guarantee memory consistency by issuing a cache flush/sync when
++	consistency is needed. If this flag is set V4L2 will attempt to
++	allocate the buffer in non-coherent memory. The flag takes effect
++	only if the buffer is used for :ref:`memory mapping <mmap>` I/O and the
++	queue reports the :ref:`V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS
++	<V4L2-BUF-CAP-SUPPORTS-MMAP-CACHE-HINTS>` capability.
++
++.. raw:: latex
++
++    \normalsize
+ 
+ Timecodes
+ =========
+diff --git a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
+index c1c88e00b106..950e7ec1aac5 100644
+--- a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
++++ b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
+@@ -154,8 +154,9 @@ aborting or finishing any DMA in progress, an implicit
+       - This capability is set by the driver to indicate that the queue supports
+         cache and memory management hints. However, it's only valid when the
+         queue is used for :ref:`memory mapping <mmap>` streaming I/O. See
+-        :ref:`V4L2_BUF_FLAG_NO_CACHE_INVALIDATE <V4L2-BUF-FLAG-NO-CACHE-INVALIDATE>` and
+-        :ref:`V4L2_BUF_FLAG_NO_CACHE_CLEAN <V4L2-BUF-FLAG-NO-CACHE-CLEAN>`.
++        :ref:`V4L2_BUF_FLAG_NO_CACHE_INVALIDATE <V4L2-BUF-FLAG-NO-CACHE-INVALIDATE>`,
++        :ref:`V4L2_BUF_FLAG_NO_CACHE_CLEAN <V4L2-BUF-FLAG-NO-CACHE-CLEAN>` and
++        :ref:`V4L2_FLAG_MEMORY_NON_COHERENT <V4L2-FLAG-MEMORY-NON-COHERENT>`.
+ 
+ Return Value
+ ============
+diff --git a/include/uapi/linux/videodev2.h b/include/uapi/linux/videodev2.h
+index 79dbde3bcf8d..b1d4171fe50b 100644
+--- a/include/uapi/linux/videodev2.h
++++ b/include/uapi/linux/videodev2.h
+@@ -954,6 +954,8 @@ struct v4l2_requestbuffers {
+ 	__u32			reserved[1];
+ };
+ 
++#define V4L2_FLAG_MEMORY_NON_COHERENT			(1 << 0)
++
+ /* capabilities for struct v4l2_requestbuffers and v4l2_create_buffers */
+ #define V4L2_BUF_CAP_SUPPORTS_MMAP			(1 << 0)
+ #define V4L2_BUF_CAP_SUPPORTS_USERPTR			(1 << 1)
+-- 
+2.30.1
+
