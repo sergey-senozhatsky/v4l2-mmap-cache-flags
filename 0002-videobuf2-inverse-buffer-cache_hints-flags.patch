@@ -1,7 +1,7 @@
-From ce298010d2f2869f9c2d3af15a88d17bb8ff6c1e Mon Sep 17 00:00:00 2001
+From 8f0210ce2a36d46189187a0fef8cc8ee0cd0ddff Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Tue, 9 Feb 2021 12:11:02 +0900
-Subject: [PATCH 2/9] videobuf2: inverse buffer cache_hints flags
+Date: Sun, 28 Feb 2021 15:58:05 +0900
+Subject: [PATCH 2/8] videobuf2: inverse buffer cache_hints flags
 
 It would be less error prone if the default cache hints value
 (we kzalloc() structs, so it's zeroed out by default) would be
@@ -16,10 +16,10 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  3 files changed, 21 insertions(+), 39 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index 55155268de80..2906b86d2ba5 100644
+index 9a5cc3e63439..23e41fec9880 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
-@@ -326,12 +326,12 @@ static void __vb2_buf_mem_prepare(struct vb2_buffer *vb)
+@@ -327,12 +327,12 @@ static void __vb2_buf_mem_prepare(struct vb2_buffer *vb)
  	if (vb->synced)
  		return;
  
@@ -29,7 +29,7 @@ index 55155268de80..2906b86d2ba5 100644
 -					vb->planes[plane].mem_priv);
 -	}
  	vb->synced = 1;
-+	if (vb->no_cache_sync_on_prepare)
++	if (vb->skip_cache_sync_on_prepare)
 +		return;
 +
 +	for (plane = 0; plane < vb->num_planes; ++plane)
@@ -37,7 +37,7 @@ index 55155268de80..2906b86d2ba5 100644
  }
  
  /*
-@@ -345,12 +345,12 @@ static void __vb2_buf_mem_finish(struct vb2_buffer *vb)
+@@ -346,12 +346,12 @@ static void __vb2_buf_mem_finish(struct vb2_buffer *vb)
  	if (!vb->synced)
  		return;
  
@@ -47,7 +47,7 @@ index 55155268de80..2906b86d2ba5 100644
 -					vb->planes[plane].mem_priv);
 -	}
  	vb->synced = 0;
-+	if (vb->no_cache_sync_on_finish)
++	if (vb->skip_cache_sync_on_finish)
 +		return;
 +
 +	for (plane = 0; plane < vb->num_planes; ++plane)
@@ -55,7 +55,7 @@ index 55155268de80..2906b86d2ba5 100644
  }
  
  /*
-@@ -414,17 +414,6 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
+@@ -415,17 +415,6 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
  		vb->index = q->num_buffers + buffer;
  		vb->type = q->type;
  		vb->memory = memory;
@@ -74,7 +74,7 @@ index 55155268de80..2906b86d2ba5 100644
  			vb->planes[plane].length = plane_sizes[plane];
  			vb->planes[plane].min_length = plane_sizes[plane];
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 7e96f67c60ba..c51755231cce 100644
+index 7e96f67c60ba..db93678860bd 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
 @@ -351,18 +351,11 @@ static void set_buffer_cache_hints(struct vb2_queue *q,
@@ -83,8 +83,8 @@ index 7e96f67c60ba..c51755231cce 100644
  	if (q->memory == VB2_MEMORY_DMABUF) {
 -		vb->need_cache_sync_on_finish = 0;
 -		vb->need_cache_sync_on_prepare = 0;
-+		vb->no_cache_sync_on_finish = 1;
-+		vb->no_cache_sync_on_prepare = 1;
++		vb->skip_cache_sync_on_finish = 1;
++		vb->skip_cache_sync_on_prepare = 1;
  		return;
  	}
  
@@ -103,20 +103,20 @@ index 7e96f67c60ba..c51755231cce 100644
  	 */
  	if (q->dma_dir == DMA_TO_DEVICE)
 -		vb->need_cache_sync_on_finish = 0;
-+		vb->no_cache_sync_on_finish = 1;
++		vb->skip_cache_sync_on_finish = 1;
  
  	if (b->flags & V4L2_BUF_FLAG_NO_CACHE_INVALIDATE)
 -		vb->need_cache_sync_on_finish = 0;
-+		vb->no_cache_sync_on_finish = 1;
++		vb->skip_cache_sync_on_finish = 1;
  
  	if (b->flags & V4L2_BUF_FLAG_NO_CACHE_CLEAN)
 -		vb->need_cache_sync_on_prepare = 0;
-+		vb->no_cache_sync_on_prepare = 1;
++		vb->skip_cache_sync_on_prepare = 1;
  }
  
  static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
 diff --git a/include/media/videobuf2-core.h b/include/media/videobuf2-core.h
-index 3baae9d73d8c..337e96e2a97b 100644
+index d0d85be4809b..48f57a54ddb1 100644
 --- a/include/media/videobuf2-core.h
 +++ b/include/media/videobuf2-core.h
 @@ -265,10 +265,10 @@ struct vb2_buffer {
@@ -127,9 +127,9 @@ index 3baae9d73d8c..337e96e2a97b 100644
 -	 *			performs cache sync/invalidation.
 -	 * need_cache_sync_on_finish: when set buffer's ->finish() function
 -	 *			performs cache sync/invalidation.
-+	 * no_cache_sync_on_prepare: when set buffer's ->prepare() function
++	 * skip_cache_sync_on_prepare: when set buffer's ->prepare() function
 +	 *			skips cache sync/invalidation.
-+	 * no_cache_sync_on_finish: when set buffer's ->finish() function
++	 * skip_cache_sync_on_finish: when set buffer's ->finish() function
 +	 *			skips cache sync/invalidation.
  	 * queued_entry:	entry on the queued buffers list, which holds
  	 *			all buffers queued from userspace
@@ -140,8 +140,8 @@ index 3baae9d73d8c..337e96e2a97b 100644
  	unsigned int		copied_timestamp:1;
 -	unsigned int		need_cache_sync_on_prepare:1;
 -	unsigned int		need_cache_sync_on_finish:1;
-+	unsigned int		no_cache_sync_on_prepare:1;
-+	unsigned int		no_cache_sync_on_finish:1;
++	unsigned int		skip_cache_sync_on_prepare:1;
++	unsigned int		skip_cache_sync_on_finish:1;
  
  	struct vb2_plane	planes[VB2_MAX_PLANES];
  	struct list_head	queued_entry;

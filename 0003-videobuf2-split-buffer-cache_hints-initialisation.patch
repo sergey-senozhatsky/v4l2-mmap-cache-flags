@@ -1,7 +1,7 @@
-From 1774ee784e096f5f4b1f6f47d67a758435cf9dc7 Mon Sep 17 00:00:00 2001
+From 50e68eca7469d06a3c7ac08c01a1344e132c70c2 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Tue, 9 Feb 2021 12:13:27 +0900
-Subject: [PATCH 3/9] videobuf2: split buffer cache_hints initialisation
+Date: Sun, 28 Feb 2021 15:58:28 +0900
+Subject: [PATCH 3/8] videobuf2: split buffer cache_hints initialisation
 
 V4L2 is not the perfect place to manage vb2 buffer cache hints.
 It works for V4L2 users, but there are backends that use vb2 core
@@ -15,10 +15,10 @@ Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
  2 files changed, 22 insertions(+), 18 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index 2906b86d2ba5..631bd3200795 100644
+index 23e41fec9880..76210c006958 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
-@@ -381,6 +381,27 @@ static void __setup_offsets(struct vb2_buffer *vb)
+@@ -382,6 +382,27 @@ static void __setup_offsets(struct vb2_buffer *vb)
  	}
  }
  
@@ -30,8 +30,8 @@ index 2906b86d2ba5..631bd3200795 100644
 +	 * we always need ->prepare() or/and ->finish() cache sync.
 +	 */
 +	if (q->memory == VB2_MEMORY_DMABUF) {
-+		vb->no_cache_sync_on_finish = 1;
-+		vb->no_cache_sync_on_prepare = 1;
++		vb->skip_cache_sync_on_finish = 1;
++		vb->skip_cache_sync_on_prepare = 1;
 +		return;
 +	}
 +
@@ -40,13 +40,13 @@ index 2906b86d2ba5..631bd3200795 100644
 +	 * TO_DEVICE.
 +	 */
 +	if (q->dma_dir == DMA_TO_DEVICE)
-+		vb->no_cache_sync_on_finish = 1;
++		vb->skip_cache_sync_on_finish = 1;
 +}
 +
  /*
   * __vb2_queue_alloc() - allocate videobuf buffer structures and (for MMAP type)
   * video buffer memory for all buffers/planes on the queue and initializes the
-@@ -414,6 +435,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
+@@ -415,6 +436,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
  		vb->index = q->num_buffers + buffer;
  		vb->type = q->type;
  		vb->memory = memory;
@@ -55,7 +55,7 @@ index 2906b86d2ba5..631bd3200795 100644
  			vb->planes[plane].length = plane_sizes[plane];
  			vb->planes[plane].min_length = plane_sizes[plane];
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index c51755231cce..afee19cbf5ac 100644
+index db93678860bd..a02f365bbe60 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
 @@ -345,17 +345,6 @@ static void set_buffer_cache_hints(struct vb2_queue *q,
@@ -68,8 +68,8 @@ index c51755231cce..afee19cbf5ac 100644
 -	 * we always need ->prepare() or/and ->finish() cache sync.
 -	 */
 -	if (q->memory == VB2_MEMORY_DMABUF) {
--		vb->no_cache_sync_on_finish = 1;
--		vb->no_cache_sync_on_prepare = 1;
+-		vb->skip_cache_sync_on_finish = 1;
+-		vb->skip_cache_sync_on_prepare = 1;
 -		return;
 -	}
 -
@@ -85,10 +85,10 @@ index c51755231cce..afee19cbf5ac 100644
 -	 * TO_DEVICE.
 -	 */
 -	if (q->dma_dir == DMA_TO_DEVICE)
--		vb->no_cache_sync_on_finish = 1;
+-		vb->skip_cache_sync_on_finish = 1;
 -
  	if (b->flags & V4L2_BUF_FLAG_NO_CACHE_INVALIDATE)
- 		vb->no_cache_sync_on_finish = 1;
+ 		vb->skip_cache_sync_on_finish = 1;
  
 -- 
 2.30.1
