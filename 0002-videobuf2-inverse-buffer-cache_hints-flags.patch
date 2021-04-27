@@ -1,6 +1,6 @@
-From 8f0210ce2a36d46189187a0fef8cc8ee0cd0ddff Mon Sep 17 00:00:00 2001
+From 4c4c2bff2028ff043c8ea12bc3edc1a070b42910 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Sun, 28 Feb 2021 15:58:05 +0900
+Date: Tue, 2 Mar 2021 09:46:18 +0900
 Subject: [PATCH 2/8] videobuf2: inverse buffer cache_hints flags
 
 It would be less error prone if the default cache hints value
@@ -116,10 +116,10 @@ index 7e96f67c60ba..db93678860bd 100644
  
  static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
 diff --git a/include/media/videobuf2-core.h b/include/media/videobuf2-core.h
-index d0d85be4809b..48f57a54ddb1 100644
+index 3b5986cee073..66e548268242 100644
 --- a/include/media/videobuf2-core.h
 +++ b/include/media/videobuf2-core.h
-@@ -265,10 +265,10 @@ struct vb2_buffer {
+@@ -267,10 +267,10 @@ struct vb2_buffer {
  	 *			after the 'buf_finish' op is called.
  	 * copied_timestamp:	the timestamp of this capture buffer was copied
  	 *			from an output buffer.
@@ -134,7 +134,7 @@ index d0d85be4809b..48f57a54ddb1 100644
  	 * queued_entry:	entry on the queued buffers list, which holds
  	 *			all buffers queued from userspace
  	 * done_entry:		entry on the list that stores all buffers ready
-@@ -279,8 +279,8 @@ struct vb2_buffer {
+@@ -281,8 +281,8 @@ struct vb2_buffer {
  	unsigned int		synced:1;
  	unsigned int		prepared:1;
  	unsigned int		copied_timestamp:1;
@@ -146,5 +146,5 @@ index d0d85be4809b..48f57a54ddb1 100644
  	struct vb2_plane	planes[VB2_MAX_PLANES];
  	struct list_head	queued_entry;
 -- 
-2.30.1
+2.31.1.498.g6c1eba8ee3d-goog
 

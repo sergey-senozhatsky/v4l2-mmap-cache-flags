@@ -1,6 +1,6 @@
-From 5554d08bd55e605ba4611fbf870895df364aff0e Mon Sep 17 00:00:00 2001
+From 81a19adaaf2731eb6aac0f0760d2d0868327c6d1 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Mon, 1 Mar 2021 11:08:39 +0900
+Date: Tue, 2 Mar 2021 09:46:24 +0900
 Subject: [PATCH 8/8] videobuf2: handle non-contiguous DMA allocations
 
 This adds support for new noncontiguous DMA API, which
@@ -15,7 +15,7 @@ Signed-off-by: Christoph Hellwig <hch@lst.de>
  1 file changed, 116 insertions(+), 24 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-dma-contig.c b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
-index 1e218bc440c6..0a1ad3fb783e 100644
+index 1e218bc440c6..40eaaef1565b 100644
 --- a/drivers/media/common/videobuf2/videobuf2-dma-contig.c
 +++ b/drivers/media/common/videobuf2/videobuf2-dma-contig.c
 @@ -17,6 +17,7 @@
@@ -26,22 +26,15 @@ index 1e218bc440c6..0a1ad3fb783e 100644
  
  #include <media/videobuf2-v4l2.h>
  #include <media/videobuf2-dma-contig.h>
-@@ -42,8 +43,14 @@ struct vb2_dc_buf {
+@@ -42,6 +43,7 @@ struct vb2_dc_buf {
  	struct dma_buf_attachment	*db_attach;
  
  	struct vb2_buffer		*vb;
-+	unsigned int			non_coherent_mem:1;
++	bool				coherent_mem;
  };
  
-+static bool vb2_dc_is_coherent(struct vb2_dc_buf *buf)
-+{
-+	return !buf->non_coherent_mem;
-+}
-+
  /*********************************************/
- /*        scatterlist table functions        */
- /*********************************************/
-@@ -78,12 +85,21 @@ static void *vb2_dc_cookie(struct vb2_buffer *vb, void *buf_priv)
+@@ -78,14 +80,22 @@ static void *vb2_dc_cookie(struct vb2_buffer *vb, void *buf_priv)
  static void *vb2_dc_vaddr(struct vb2_buffer *vb, void *buf_priv)
  {
  	struct vb2_dc_buf *buf = buf_priv;
@@ -59,16 +52,17 @@ index 1e218bc440c6..0a1ad3fb783e 100644
 +
 +		if (!dma_buf_vmap(buf->db_attach->dmabuf, &map))
 +			buf->vaddr = map.vaddr;
-+	}
 +
-+	if (!vb2_dc_is_coherent(buf)) {
-+		buf->vaddr = dma_vmap_noncontiguous(buf->dev,
-+						    buf->size,
-+						    buf->dma_sgt);
++		return buf->vaddr;
  	}
  
++	/* Non-coherent memory */
++	buf->vaddr = dma_vmap_noncontiguous(buf->dev, buf->size, buf->dma_sgt);
++
  	return buf->vaddr;
-@@ -101,13 +117,26 @@ static void vb2_dc_prepare(void *buf_priv)
+ }
+ 
+@@ -101,13 +111,26 @@ static void vb2_dc_prepare(void *buf_priv)
  	struct vb2_dc_buf *buf = buf_priv;
  	struct sg_table *sgt = buf->dma_sgt;
  
@@ -77,10 +71,10 @@ index 1e218bc440c6..0a1ad3fb783e 100644
  		return;
  
 +	/*
-+	 * Coherent MMAP buffers do not need to be synced, unlike coherent
-+	 * USERPTR and non-coherent MMAP buffers.
++	 * Coherent MMAP buffers do not need to be synced, unlike USERPTR
++	 * and non-coherent MMAP buffers.
 +	 */
-+	if (buf->vb->memory == V4L2_MEMORY_MMAP && vb2_dc_is_coherent(buf))
++	if (buf->vb->memory == V4L2_MEMORY_MMAP && buf->coherent_mem)
 +		return;
 +
  	if (!sgt)
@@ -89,13 +83,13 @@ index 1e218bc440c6..0a1ad3fb783e 100644
 +	/* For both USERPTR and non-coherent MMAP */
  	dma_sync_sgtable_for_device(buf->dev, sgt, buf->dma_dir);
 +
-+	/* Non-coherrent MMAP only */
-+	if (!vb2_dc_is_coherent(buf) && buf->vaddr)
++	/* Non-coherent MMAP only */
++	if (!buf->coherent_mem && buf->vaddr)
 +		flush_kernel_vmap_range(buf->vaddr, buf->size);
  }
  
  static void vb2_dc_finish(void *buf_priv)
-@@ -115,19 +144,46 @@ static void vb2_dc_finish(void *buf_priv)
+@@ -115,19 +138,46 @@ static void vb2_dc_finish(void *buf_priv)
  	struct vb2_dc_buf *buf = buf_priv;
  	struct sg_table *sgt = buf->dma_sgt;
  
@@ -104,10 +98,10 @@ index 1e218bc440c6..0a1ad3fb783e 100644
  		return;
  
 +	/*
-+	 * Coherent MMAP buffers do not need to be synced, unlike coherent
-+	 * USERPTR and non-coherent MMAP buffers.
++	 * Coherent MMAP buffers do not need to be synced, unlike USERPTR
++	 * and non-coherent MMAP buffers.
 +	 */
-+	if (buf->vb->memory == V4L2_MEMORY_MMAP && vb2_dc_is_coherent(buf))
++	if (buf->vb->memory == V4L2_MEMORY_MMAP && buf->coherent_mem)
 +		return;
 +
  	if (!sgt)
@@ -116,8 +110,8 @@ index 1e218bc440c6..0a1ad3fb783e 100644
 +	/* For both USERPTR and non-coherent MMAP */
  	dma_sync_sgtable_for_cpu(buf->dev, sgt, buf->dma_dir);
 +
-+	/* Non-coherrent MMAP only */
-+	if (!vb2_dc_is_coherent(buf) && buf->vaddr)
++	/* Non-coherent MMAP only */
++	if (!buf->coherent_mem && buf->vaddr)
 +		invalidate_kernel_vmap_range(buf->vaddr, buf->size);
  }
  
@@ -127,7 +121,7 @@ index 1e218bc440c6..0a1ad3fb783e 100644
  
 +static void __vb2_dc_put(struct vb2_dc_buf *buf)
 +{
-+	if (vb2_dc_is_coherent(buf)) {
++	if (buf->coherent_mem) {
 +		dma_free_attrs(buf->dev, buf->size, buf->cookie,
 +			       buf->dma_addr, buf->attrs);
 +		return;
@@ -142,7 +136,7 @@ index 1e218bc440c6..0a1ad3fb783e 100644
  static void vb2_dc_put(void *buf_priv)
  {
  	struct vb2_dc_buf *buf = buf_priv;
-@@ -139,17 +195,46 @@ static void vb2_dc_put(void *buf_priv)
+@@ -139,17 +189,52 @@ static void vb2_dc_put(void *buf_priv)
  		sg_free_table(buf->sgt_base);
  		kfree(buf->sgt_base);
  	}
@@ -176,9 +170,15 @@ index 1e218bc440c6..0a1ad3fb783e 100644
 +	buf->dma_sgt = dma_alloc_noncontiguous(buf->dev,
 +					       buf->size,
 +					       buf->dma_dir,
-+					       GFP_KERNEL | q->gfp_flags);
++					       GFP_KERNEL | q->gfp_flags,
++					       buf->attrs);
 +	if (!buf->dma_sgt)
 +		return -ENOMEM;
++	/*
++	 * For requests that need kernel mapping (DMA_ATTR_NO_KERNEL_MAPPING
++	 * bit is cleared) we perform dma_vmap_noncontiguous() later, in
++	 * vb2_dc_vadd().
++	 */
 +	return 0;
 +}
 +
@@ -208,7 +208,7 @@ index 1e218bc440c6..0a1ad3fb783e 100644
 -		buf->vaddr = buf->cookie;
 +	buf->dma_dir = vb->vb2_queue->dma_dir;
 +	buf->vb = vb;
-+	buf->non_coherent_mem = vb->vb2_queue->non_coherent_mem;
++	buf->coherent_mem = vb->vb2_queue->coherent_mem;
  
 +	buf->size = size;
  	/* Prevent the device from being released while the buffer is used */
@@ -216,7 +216,7 @@ index 1e218bc440c6..0a1ad3fb783e 100644
 -	buf->size = size;
 -	buf->dma_dir = vb->vb2_queue->dma_dir;
 +
-+	if (vb2_dc_is_coherent(buf))
++	if (buf->coherent_mem)
 +		ret = vb2_dc_alloc_coherent(buf);
 +	else
 +		ret = vb2_dc_alloc_non_coherent(buf);
@@ -241,7 +241,7 @@ index 1e218bc440c6..0a1ad3fb783e 100644
 -	ret = dma_mmap_attrs(buf->dev, vma, buf->cookie,
 -		buf->dma_addr, buf->size, buf->attrs);
 -
-+	if (vb2_dc_is_coherent(buf))
++	if (buf->coherent_mem)
 +		ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr,
 +				     buf->size, buf->attrs);
 +	else
@@ -254,12 +254,12 @@ index 1e218bc440c6..0a1ad3fb783e 100644
  	int ret;
  	struct sg_table *sgt;
  
-+	if (!vb2_dc_is_coherent(buf))
++	if (!buf->coherent_mem)
 +		return buf->dma_sgt;
 +
  	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
  	if (!sgt) {
  		dev_err(buf->dev, "failed to alloc sg table\n");
 -- 
-2.30.1
+2.31.1.498.g6c1eba8ee3d-goog
 

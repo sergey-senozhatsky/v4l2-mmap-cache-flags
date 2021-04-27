@@ -1,6 +1,6 @@
-From bee2a683ba06f61618e420cf19725d5237f09198 Mon Sep 17 00:00:00 2001
+From 2a29209e22e5158839f84f8958e34e9911f48ca0 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Sun, 28 Feb 2021 16:15:54 +0900
+Date: Tue, 2 Mar 2021 09:46:22 +0900
 Subject: [PATCH 6/8] videobuf2: add queue memory coherency parameter
 
 Preparations for future V4L2_FLAG_MEMORY_NON_COHERENT support.
@@ -13,35 +13,33 @@ which don't match queue's consistency model will fail.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- .../media/common/videobuf2/videobuf2-core.c   | 40 ++++++++++++++++---
+ .../media/common/videobuf2/videobuf2-core.c   | 38 ++++++++++++++++---
  .../media/common/videobuf2/videobuf2-v4l2.c   |  5 ++-
  drivers/media/dvb-core/dvb_vb2.c              |  2 +-
- include/media/videobuf2-core.h                |  8 +++-
+ include/media/videobuf2-core.h                | 10 ++++-
  4 files changed, 44 insertions(+), 11 deletions(-)
 
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index 55af63d54f23..7040b7f47133 100644
+index 55af63d54f23..af4db310cf5e 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
-@@ -738,11 +738,33 @@ int vb2_verify_memory_type(struct vb2_queue *q,
+@@ -738,11 +738,31 @@ int vb2_verify_memory_type(struct vb2_queue *q,
  }
  EXPORT_SYMBOL(vb2_verify_memory_type);
  
 +static void set_queue_coherency(struct vb2_queue *q, bool coherent_mem)
 +{
-+	q->non_coherent_mem = 0;
++	q->coherent_mem = 1;
 +
 +	if (!vb2_queue_allows_cache_hints(q))
 +		return;
 +	if (!coherent_mem)
-+		q->non_coherent_mem = 1;
++		q->coherent_mem = 0;
 +}
 +
 +static bool verify_coherency_flags(struct vb2_queue *q, bool coherent_mem)
 +{
-+	bool queue_is_coherent = !q->non_coherent_mem;
-+
-+	if (coherent_mem != queue_is_coherent) {
++	if (coherent_mem != q->coherent_mem) {
 +		dprintk(q, 1, "memory coherency model mismatch\n");
 +		return false;
 +	}
@@ -58,7 +56,7 @@ index 55af63d54f23..7040b7f47133 100644
  	unsigned int i;
  	int ret;
  
-@@ -757,7 +779,8 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -757,7 +777,8 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
  	}
  
  	if (*count == 0 || q->num_buffers != 0 ||
@@ -68,7 +66,7 @@ index 55af63d54f23..7040b7f47133 100644
  		/*
  		 * We already have buffers allocated, so first check if they
  		 * are not in use and can be freed.
-@@ -794,6 +817,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -794,6 +815,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
  	num_buffers = min_t(unsigned int, num_buffers, VB2_MAX_FRAME);
  	memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
  	q->memory = memory;
@@ -76,7 +74,7 @@ index 55af63d54f23..7040b7f47133 100644
  
  	/*
  	 * Ask the driver how many buffers and planes per buffer it requires.
-@@ -878,12 +902,13 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -878,12 +900,13 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
  EXPORT_SYMBOL_GPL(vb2_core_reqbufs);
  
  int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
@@ -91,7 +89,7 @@ index 55af63d54f23..7040b7f47133 100644
  	int ret;
  
  	if (q->num_buffers == VB2_MAX_FRAME) {
-@@ -899,11 +924,14 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -899,11 +922,14 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
  		memset(q->alloc_devs, 0, sizeof(q->alloc_devs));
  		q->memory = memory;
  		q->waiting_for_buffers = !q->is_output;
@@ -106,7 +104,7 @@ index 55af63d54f23..7040b7f47133 100644
  	}
  
  	num_buffers = min(*count, VB2_MAX_FRAME - q->num_buffers);
-@@ -2576,7 +2604,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
+@@ -2576,7 +2602,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
  	fileio->memory = VB2_MEMORY_MMAP;
  	fileio->type = q->type;
  	q->fileio = fileio;
@@ -115,7 +113,7 @@ index 55af63d54f23..7040b7f47133 100644
  	if (ret)
  		goto err_kfree;
  
-@@ -2633,7 +2661,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
+@@ -2633,7 +2659,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
  
  err_reqbufs:
  	fileio->count = 0;
@@ -124,7 +122,7 @@ index 55af63d54f23..7040b7f47133 100644
  
  err_kfree:
  	q->fileio = NULL;
-@@ -2653,7 +2681,7 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q)
+@@ -2653,7 +2679,7 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q)
  		vb2_core_streamoff(q, q->type);
  		q->fileio = NULL;
  		fileio->count = 0;
@@ -177,18 +175,27 @@ index 6974f1731529..959d110407a4 100644
  		ctx->state = DVB_VB2_STATE_NONE;
  		dprintk(1, "[%s] count=%d size=%d errno=%d\n", ctx->name,
 diff --git a/include/media/videobuf2-core.h b/include/media/videobuf2-core.h
-index 48f57a54ddb1..2423ddf8361e 100644
+index 66e548268242..766804d22890 100644
 --- a/include/media/videobuf2-core.h
 +++ b/include/media/videobuf2-core.h
-@@ -581,6 +581,7 @@ struct vb2_queue {
+@@ -504,6 +504,8 @@ struct vb2_buf_ops {
+  * @allow_cache_hints: when set user-space can pass cache management hints in
+  *		order to skip cache flush/invalidation on ->prepare() or/and
+  *		->finish().
++ * @coherent_mem: when cleared queue will attempt to allocate buffers using
++ *		non-coherent memory.
+  * @lock:	pointer to a mutex that protects the &struct vb2_queue. The
+  *		driver can set this to a mutex to let the v4l2 core serialize
+  *		the queuing ioctls. If the driver wants to handle locking
+@@ -583,6 +585,7 @@ struct vb2_queue {
  	unsigned int			uses_qbuf:1;
  	unsigned int			uses_requests:1;
  	unsigned int			allow_cache_hints:1;
-+	unsigned int			non_coherent_mem:1;
++	unsigned int			coherent_mem:1;
  
  	struct mutex			*lock;
  	void				*owner;
-@@ -746,6 +747,8 @@ void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
+@@ -748,6 +751,8 @@ void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
   * vb2_core_reqbufs() - Initiate streaming.
   * @q:		pointer to &struct vb2_queue with videobuf2 queue.
   * @memory:	memory type, as defined by &enum vb2_memory.
@@ -197,7 +204,7 @@ index 48f57a54ddb1..2423ddf8361e 100644
   * @count:	requested buffer count.
   *
   * Videobuf2 core helper to implement VIDIOC_REQBUF() operation. It is called
-@@ -770,12 +773,13 @@ void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
+@@ -772,12 +777,13 @@ void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb);
   * Return: returns zero on success; an error code otherwise.
   */
  int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
@@ -212,7 +219,7 @@ index 48f57a54ddb1..2423ddf8361e 100644
   * @count: requested buffer count.
   * @requested_planes: number of planes requested.
   * @requested_sizes: array with the size of the planes.
-@@ -793,7 +797,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -795,7 +801,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
   * Return: returns zero on success; an error code otherwise.
   */
  int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
@@ -222,5 +229,5 @@ index 48f57a54ddb1..2423ddf8361e 100644
  			 const unsigned int requested_sizes[]);
  
 -- 
-2.30.1
+2.31.1.498.g6c1eba8ee3d-goog
 

@@ -1,6 +1,6 @@
-From c4141a5387bfb304dad41ef7f65efdc1b1a25871 Mon Sep 17 00:00:00 2001
+From ff4faa32f78e0e8953e776c0d27c20dd9ada1723 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Mon, 1 Mar 2021 04:44:57 +0000
+Date: Mon, 1 Mar 2021 13:44:03 +0900
 Subject: [PATCH] v4l-compliance: re-introduce NON_COHERENT and cache hints
  tests
 
@@ -89,7 +89,7 @@ index f96b3c38..c09cd987 100644
  
  static inline void v4l_queue_buffer_update(const struct v4l_queue *q,
 diff --git a/utils/v4l2-compliance/v4l2-test-buffers.cpp b/utils/v4l2-compliance/v4l2-test-buffers.cpp
-index e40461bd..6555c0cb 100644
+index e40461bd..6997f40b 100644
 --- a/utils/v4l2-compliance/v4l2-test-buffers.cpp
 +++ b/utils/v4l2-compliance/v4l2-test-buffers.cpp
 @@ -663,6 +663,10 @@ int testReqBufs(struct node *node)
@@ -107,10 +107,10 @@ index e40461bd..6555c0cb 100644
  			reqbufs.count = 1;
  			reqbufs.type = i;
  			reqbufs.memory = m;
-+			reqbufs.flags = V4L2_FLAG_MEMORY_NON_COHERENT;
++			reqbufs.flags = V4L2_MEMORY_FLAG_NON_COHERENT;
  			fail_on_test(doioctl(node, VIDIOC_REQBUFS, &reqbufs));
 -			fail_on_test(check_0(reqbufs.reserved, sizeof(reqbufs.reserved)));
-+			consistent = reqbufs.flags & V4L2_FLAG_MEMORY_NON_COHERENT;
++			consistent = reqbufs.flags & V4L2_MEMORY_FLAG_NON_COHERENT;
 +			if (!cache_hints_cap) {
 +				fail_on_test(consistent);
 +			} else {
@@ -126,12 +126,12 @@ index e40461bd..6555c0cb 100644
  			node->g_fmt(crbufs.format, i);
  			crbufs.count = 1;
  			crbufs.memory = m;
-+			crbufs.flags = V4L2_FLAG_MEMORY_NON_COHERENT;
++			crbufs.flags = V4L2_MEMORY_FLAG_NON_COHERENT;
  			fail_on_test(doioctl(node, VIDIOC_CREATE_BUFS, &crbufs));
  			fail_on_test(check_0(crbufs.reserved, sizeof(crbufs.reserved)));
  			fail_on_test(crbufs.index != q.g_buffers());
 +
-+			consistent = crbufs.flags & V4L2_FLAG_MEMORY_NON_COHERENT;
++			consistent = crbufs.flags & V4L2_MEMORY_FLAG_NON_COHERENT;
 +			if (!cache_hints_cap) {
 +				fail_on_test(consistent);
 +			} else {
@@ -199,7 +199,7 @@ index e40461bd..6555c0cb 100644
  		if (have_createbufs) {
  			q.reqbufs(node);
 -			q.create_bufs(node, 2, &cur_fmt);
-+			q.create_bufs(node, 2, &cur_fmt, V4L2_FLAG_MEMORY_NON_COHERENT);
++			q.create_bufs(node, 2, &cur_fmt, V4L2_MEMORY_FLAG_NON_COHERENT);
  			fail_on_test(setupMmap(node, q));
  			q.munmap_bufs(node);
  			q.reqbufs(node, 2);

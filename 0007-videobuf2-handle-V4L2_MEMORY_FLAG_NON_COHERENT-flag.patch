@@ -1,7 +1,7 @@
-From 36dba73f0165cd6a71ed4e10aca11c0254327bfa Mon Sep 17 00:00:00 2001
+From 9f3796045cad67325825c53820c8fbfc2772bbe0 Mon Sep 17 00:00:00 2001
 From: Sergey Senozhatsky <senozhatsky@chromium.org>
-Date: Sun, 28 Feb 2021 16:20:55 +0900
-Subject: [PATCH 7/8] videobuf2: handle V4L2_FLAG_MEMORY_NON_COHERENT flag
+Date: Tue, 27 Apr 2021 00:53:38 +0900
+Subject: [PATCH 7/8] videobuf2: handle V4L2_MEMORY_FLAG_NON_COHERENT flag
 
 This patch lets user-space to request a non-coherent memory
 allocation during CREATE_BUFS and REQBUFS ioctl calls.
@@ -20,25 +20,22 @@ allocation during CREATE_BUFS and REQBUFS ioctl calls.
 
 = REQBUFS
 
- We use one bit of a ->reserved[1] member of struct v4l2_requestbuffers,
- which is now renamed to ->flags. Unlike v4l2_create_buffers, struct
- v4l2_requestbuffers does not have enough reserved room. Therefore for
- backward compatibility  ->reserved and ->flags were put into anonymous
- union.
+ We use one byte of a 4 byte ->reserved[1] member of struct
+ v4l2_requestbuffers. The struct, thus, now has reserved 3 bytes.
 
 Signed-off-by: Sergey Senozhatsky <senozhatsky@chromium.org>
 ---
- .../media/v4l/vidioc-create-bufs.rst          |  7 ++++++-
- .../media/v4l/vidioc-reqbufs.rst              | 11 +++++++++--
- .../media/common/videobuf2/videobuf2-core.c   |  6 ++++++
- .../media/common/videobuf2/videobuf2-v4l2.c   | 19 ++++++++++++++++---
- drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 ++++++++-
- drivers/media/v4l2-core/v4l2-ioctl.c          |  5 +----
- include/uapi/linux/videodev2.h                | 11 +++++++++--
- 7 files changed, 55 insertions(+), 13 deletions(-)
+ .../media/v4l/vidioc-create-bufs.rst          |  7 ++++-
+ .../media/v4l/vidioc-reqbufs.rst              | 12 +++++---
+ .../media/common/videobuf2/videobuf2-core.c   |  4 +--
+ .../media/common/videobuf2/videobuf2-v4l2.c   | 28 +++++++++++++++++--
+ drivers/media/v4l2-core/v4l2-compat-ioctl32.c |  9 +++++-
+ drivers/media/v4l2-core/v4l2-ioctl.c          |  5 +---
+ include/uapi/linux/videodev2.h                |  9 ++++--
+ 7 files changed, 57 insertions(+), 17 deletions(-)
 
 diff --git a/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst b/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst
-index b06e5b528e11..132c8b612a94 100644
+index f98f18c9e91c..a048a9f6b7b6 100644
 --- a/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst
 +++ b/Documentation/userspace-api/media/v4l/vidioc-create-bufs.rst
 @@ -113,7 +113,12 @@ than the number requested.
@@ -56,90 +53,94 @@ index b06e5b528e11..132c8b612a94 100644
  	must set the array to zero.
  
 diff --git a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
-index 950e7ec1aac5..80ea48acea84 100644
+index e59306aba2b0..5a047c0ec3e8 100644
 --- a/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
 +++ b/Documentation/userspace-api/media/v4l/vidioc-reqbufs.rst
-@@ -104,10 +104,17 @@ aborting or finishing any DMA in progress, an implicit
+@@ -104,10 +104,14 @@ aborting or finishing any DMA in progress, an implicit
  	``V4L2_MEMORY_MMAP`` and ``type`` set to the buffer type. This will
  	free any previously allocated buffers, so this is typically something
  	that will be done at the start of the application.
-+    * - union {
-+      - (anonymous)
-+    * - __u32
+-    * - __u32
+-      - ``reserved``\ [1]
+-      - A place holder for future extensions. Drivers and applications
+-	must set the array to zero.
++    * - __u8
 +      - ``flags``
 +      - Specifies additional buffer management attributes.
 +	See :ref:`memory-flags`.
-     * - __u32
-       - ``reserved``\ [1]
--      - A place holder for future extensions. Drivers and applications
--	must set the array to zero.
-+      - Kept for backwards compatibility. Use ``flags`` instead.
-+    * - }
++    * - __u8
++      - ``reserved``\ [3]
++      - Reserved for future extensions.
 +      -
  
- .. tabularcolumns:: |p{6.1cm}|p{2.2cm}|p{8.7cm}|
- 
+ .. _v4l2-buf-capabilities:
+ .. _V4L2-BUF-CAP-SUPPORTS-MMAP:
 diff --git a/drivers/media/common/videobuf2/videobuf2-core.c b/drivers/media/common/videobuf2/videobuf2-core.c
-index 7040b7f47133..5906a48e7757 100644
+index af4db310cf5e..38505783247e 100644
 --- a/drivers/media/common/videobuf2/videobuf2-core.c
 +++ b/drivers/media/common/videobuf2/videobuf2-core.c
-@@ -768,6 +768,9 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+@@ -762,7 +762,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
+ {
+ 	unsigned int num_buffers, allocated_buffers, num_planes = 0;
+ 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
+-	bool coherent_mem = true;
++	bool coherent_mem = !(flags & V4L2_MEMORY_FLAG_NON_COHERENT);
  	unsigned int i;
  	int ret;
  
-+	if (flags & V4L2_FLAG_MEMORY_NON_COHERENT)
-+		coherent_mem = false;
-+
- 	if (q->streaming) {
- 		dprintk(q, 1, "streaming active\n");
- 		return -EBUSY;
-@@ -911,6 +914,9 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
- 	bool coherent_mem = true;
+@@ -906,7 +906,7 @@ int vb2_core_create_bufs(struct vb2_queue *q, enum vb2_memory memory,
+ {
+ 	unsigned int num_planes = 0, num_buffers, allocated_buffers;
+ 	unsigned plane_sizes[VB2_MAX_PLANES] = { };
+-	bool coherent_mem = true;
++	bool coherent_mem = !(flags & V4L2_MEMORY_FLAG_NON_COHERENT);
  	int ret;
  
-+	if (flags & V4L2_FLAG_MEMORY_NON_COHERENT)
-+		coherent_mem = false;
-+
  	if (q->num_buffers == VB2_MAX_FRAME) {
- 		dprintk(q, 1, "maximum number of buffers already allocated\n");
- 		return -ENOBUFS;
 diff --git a/drivers/media/common/videobuf2/videobuf2-v4l2.c b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-index 1166d5a9291a..f6a8dcc1b5c6 100644
+index 1166d5a9291a..8d344335552e 100644
 --- a/drivers/media/common/videobuf2/videobuf2-v4l2.c
 +++ b/drivers/media/common/videobuf2/videobuf2-v4l2.c
-@@ -692,12 +692,22 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+@@ -692,12 +692,29 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
  #endif
  }
  
-+static void validate_coherency_flags(struct vb2_queue *q,
-+				     int memory,
-+				     unsigned int *flags)
++static void validate_memory_flags(struct vb2_queue *q,
++				  int memory,
++				  u32 *flags)
 +{
-+	if (!q->allow_cache_hints || memory != V4L2_MEMORY_MMAP)
-+		*flags &= ~V4L2_FLAG_MEMORY_NON_COHERENT;
++	if (!q->allow_cache_hints || memory != V4L2_MEMORY_MMAP) {
++		/*
++		 * This needs to clear V4L2_MEMORY_FLAG_NON_COHERENT only,
++		 * but in order to avoid bugs we zero out all bits.
++		 */
++		*flags = 0;
++	}
 +}
 +
  int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
  {
  	int ret = vb2_verify_memory_type(q, req->memory, req->type);
++	u32 flags = req->flags;
  
  	fill_buf_caps(q, &req->capabilities);
 -	return ret ? ret : vb2_core_reqbufs(q, req->memory, 0, &req->count);
-+	validate_coherency_flags(q, req->memory, &req->flags);
++	validate_memory_flags(q, req->memory, &flags);
++	req->flags = flags;
 +	return ret ? ret : vb2_core_reqbufs(q, req->memory,
 +					    req->flags, &req->count);
  }
  EXPORT_SYMBOL_GPL(vb2_reqbufs);
  
-@@ -729,6 +739,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+@@ -729,6 +746,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
  	unsigned i;
  
  	fill_buf_caps(q, &create->capabilities);
-+	validate_coherency_flags(q, create->memory, &create->flags);
++	validate_memory_flags(q, create->memory, &create->flags);
  	create->index = q->num_buffers;
  	if (create->count == 0)
  		return ret != -EBUSY ? ret : 0;
-@@ -772,7 +783,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+@@ -772,7 +790,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
  		if (requested_sizes[i] == 0)
  			return -EINVAL;
  	return ret ? ret : vb2_core_create_bufs(q, create->memory,
@@ -148,11 +149,15 @@ index 1166d5a9291a..f6a8dcc1b5c6 100644
  						&create->count,
  						requested_planes,
  						requested_sizes);
-@@ -957,11 +968,12 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
+@@ -955,13 +973,16 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
+ {
+ 	struct video_device *vdev = video_devdata(file);
  	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
++	u32 flags = p->flags;
  
  	fill_buf_caps(vdev->queue, &p->capabilities);
-+	validate_coherency_flags(vdev->queue, p->memory, &p->flags);
++	validate_memory_flags(vdev->queue, p->memory, &flags);
++	p->flags = flags;
  	if (res)
  		return res;
  	if (vb2_queue_is_busy(vdev, file))
@@ -162,11 +167,11 @@ index 1166d5a9291a..f6a8dcc1b5c6 100644
  	/* If count == 0, then the owner has released all buffers and he
  	   is no longer owner of the queue. Otherwise we have a new owner. */
  	if (res == 0)
-@@ -979,6 +991,7 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
+@@ -979,6 +1000,7 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
  
  	p->index = vdev->queue->num_buffers;
  	fill_buf_caps(vdev->queue, &p->capabilities);
-+	validate_coherency_flags(vdev->queue, p->memory, &p->flags);
++	validate_memory_flags(vdev->queue, p->memory, &p->flags);
  	/*
  	 * If count == 0, then just check if memory and type are valid.
  	 * Any -EBUSY result from vb2_verify_memory_type can be mapped to 0.
@@ -212,10 +217,10 @@ index 0ca75f6784c5..1aa9ca3b6ca4 100644
  		return -EFAULT;
  	return put_v4l2_format32(&p64->format, &p32->format);
 diff --git a/drivers/media/v4l2-core/v4l2-ioctl.c b/drivers/media/v4l2-core/v4l2-ioctl.c
-index 31d1342e61e8..f8d38a3cd1e0 100644
+index 2673f51aafa4..b1430a741936 100644
 --- a/drivers/media/v4l2-core/v4l2-ioctl.c
 +++ b/drivers/media/v4l2-core/v4l2-ioctl.c
-@@ -2045,9 +2045,6 @@ static int v4l_reqbufs(const struct v4l2_ioctl_ops *ops,
+@@ -2003,9 +2003,6 @@ static int v4l_reqbufs(const struct v4l2_ioctl_ops *ops,
  
  	if (ret)
  		return ret;
@@ -225,7 +230,7 @@ index 31d1342e61e8..f8d38a3cd1e0 100644
  	return ops->vidioc_reqbufs(file, fh, p);
  }
  
-@@ -2087,7 +2084,7 @@ static int v4l_create_bufs(const struct v4l2_ioctl_ops *ops,
+@@ -2045,7 +2042,7 @@ static int v4l_create_bufs(const struct v4l2_ioctl_ops *ops,
  	if (ret)
  		return ret;
  
@@ -235,22 +240,20 @@ index 31d1342e61e8..f8d38a3cd1e0 100644
  	v4l_sanitize_format(&create->format);
  
 diff --git a/include/uapi/linux/videodev2.h b/include/uapi/linux/videodev2.h
-index b1d4171fe50b..85d2681e73b6 100644
+index 15f9c9df35d5..d62a6e4f83a0 100644
 --- a/include/uapi/linux/videodev2.h
 +++ b/include/uapi/linux/videodev2.h
-@@ -951,7 +951,10 @@ struct v4l2_requestbuffers {
+@@ -953,7 +953,8 @@ struct v4l2_requestbuffers {
  	__u32			type;		/* enum v4l2_buf_type */
  	__u32			memory;		/* enum v4l2_memory */
  	__u32			capabilities;
 -	__u32			reserved[1];
-+	union {
-+		__u32		flags;
-+		__u32		reserved[1];
-+	};
++	__u8			flags;
++	__u8			reserved[3];
  };
  
- #define V4L2_FLAG_MEMORY_NON_COHERENT			(1 << 0)
-@@ -2473,6 +2476,9 @@ struct v4l2_dbg_chip_info {
+ #define V4L2_MEMORY_FLAG_NON_COHERENT			(1 << 0)
+@@ -2494,6 +2495,9 @@ struct v4l2_dbg_chip_info {
   * @memory:	enum v4l2_memory; buffer memory type
   * @format:	frame format, for which buffers are requested
   * @capabilities: capabilities of this buffer type.
@@ -260,7 +263,7 @@ index b1d4171fe50b..85d2681e73b6 100644
   * @reserved:	future extensions
   */
  struct v4l2_create_buffers {
-@@ -2481,7 +2487,8 @@ struct v4l2_create_buffers {
+@@ -2502,7 +2506,8 @@ struct v4l2_create_buffers {
  	__u32			memory;
  	struct v4l2_format	format;
  	__u32			capabilities;
@@ -271,5 +274,5 @@ index b1d4171fe50b..85d2681e73b6 100644
  
  /*
 -- 
-2.30.1
+2.31.1.498.g6c1eba8ee3d-goog
 
